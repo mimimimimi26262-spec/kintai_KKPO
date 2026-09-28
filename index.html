@@ -184,7 +184,7 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
         <div class="status" id="status" data-s="off"><span class="lamp"></span><span id="statusText">勤務外</span><span id="statusChips" style="display:inline-flex;gap:4px"></span></div>
       </div>
       <div class="balance">
-        <div class="lbl">今月の過不足</div>
+        <div class="lbl" id="balLbl">今月の過不足</div>
         <div class="val dot" id="bal">±0:00</div>
         <div class="sub" id="balSub"></div>
       </div>
@@ -203,7 +203,7 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
       </div>
     </div>
     <div class="target">
-      <label for="mTarget">この月の総労働時間</label>
+      <label for="mTarget">この期間の総労働時間</label>
       <input type="number" id="mTarget" min="0" max="400" step="0.5" class="dot">
       <span>時間</span>
       <span class="note" id="targetNote"></span>
@@ -230,6 +230,7 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
     <summary>勤務設定</summary>
     <dl class="rules">
       <dt>制度</dt><dd>フレックスタイム制（清算期間1か月、コアタイムなし）</dd>
+      <dt>集計期間</dt><dd id="ruleSd"></dd>
       <dt>標準勤務</dt><dd>9:00〜18:00（休憩1時間、8時間）</dd>
       <dt>フレキシブルタイム</dt><dd>5:00〜22:00</dd>
       <dt>深夜労働</dt><dd>22:00〜5:00の勤務を自動で集計</dd>
@@ -241,6 +242,7 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
       <label class="f">総労働時間の決め方
         <select id="setMode"><option value="auto">所定労働日数 × 1日の標準時間</option><option value="fixed">毎月固定の時間数</option></select>
       </label>
+      <label class="f">集計期間（締め日）<select id="setStartDay"></select></label>
       <label class="f" id="wDaily">1日の標準時間<input type="number" id="setDaily" min="0" max="24" step="0.25" style="width:110px"></label>
       <label class="f" id="wTarget">毎月の総労働時間<input type="number" id="setTarget" min="0" max="400" step="0.5" style="width:120px"></label>
     </div>
@@ -453,7 +455,7 @@ function build(data){
   const refs=[];
   const monthSheets=data.months.map(M=>{
     const sh=newSheet(M.label);sh.cols=[7,7,10,6,8,8,8,8,8,8,10,30];sh.freeze=4;
-    sh.set(1,0,{v:M.label+" 勤怠表",s:1});
+    sh.set(1,0,{v:M.label+(M.range?"（"+M.range+"）":"")+" 勤怠表",s:1});
     sh.set(2,0,{v:"青字は記録、黒字は計算式です。時刻を直すと実働・深夜・集計・手当が再計算されます。深夜は休憩の位置を考慮せずに計算します。",s:15});
     ["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働","メモ"].forEach((h,i)=>sh.set(4,i,{v:h,s:2}));
     const n=M.rows.length,R=4+n;
@@ -491,7 +493,7 @@ function build(data){
     const o60=Math.min(60,Math.max(0,cH-legal)),o60p=Math.max(0,cH-legal-60);
     line(S+1,"所定労働日数",{f:'COUNTIF(C5:C'+R+',"出勤日")',v:cnt,s:18},"区分が「出勤日」の日数");
     line(S+2,"総労働時間（時間）",M.target!=null?{v:M.target,s:17}:{f:'IF('+SET+'$B$4="固定",'+SET+'$B$5,E'+(S+1)+'*'+SET+'$B$3)',v:target,s:6},
-      M.target!=null?"この月だけアプリで手入力された値":"設定シートの決め方で計算");
+      M.target!=null?"この期間だけアプリで手入力された値":"設定シートの決め方で計算");
     line(S+3,"実働（休日労働を除く）",{f:'SUMIFS(I5:I'+R+',C5:C'+R+',"出勤日")*24',v:cH,s:6},"時間");
     line(S+4,"過不足",{f:'E'+(S+3)+'-E'+(S+2),v:diff,s:19},"マイナスは不足");
     line(S+5,"時間外",{f:'MAX(0,E'+(S+4)+')',v:Math.max(0,diff),s:6},"総労働時間を超えた時間");
@@ -560,6 +562,7 @@ function build(data){
   srow(3,"1日の標準時間（時間）",{v:data.settings.daily,s:9},"標準勤務 9:00〜18:00、休憩1時間");
   srow(4,"総労働時間の決め方",{v:data.settings.mode==="fixed"?"固定":"自動",s:10},"「自動」＝所定労働日数×1日の標準時間、「固定」＝下の時間数");
   srow(5,"固定の場合の総労働時間（時間）",{v:data.settings.target,s:9});
+  if(data.settings.periodText)srow(21,"集計期間",{v:data.settings.periodText},"アプリの勤務設定で変更できます");
   if(inc){
     srow(6,"基礎時給の決め方",{v:P.basis==="hourly"?"時給":"月給",s:10},"「月給」または「時給」");
     srow(7,"月給（円）",{v:P.salary||0,s:13},"割増賃金の基礎に含める手当を足した額");
@@ -613,7 +616,7 @@ const JP_HOL=new Set(["2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-
 const FLEX_START=5,FLEX_END=22; // フレキシブルタイム 5:00〜22:00、それ以外は深夜
 
 /* ---------- storage ---------- */
-const S={db:null,uid:null,months:{},settings:{mode:"auto",daily:8,target:160,active:null,pay:{basis:"monthly",salary:0,avg:163.3,hourly:0,rIn:0,rOver:25,r60:50,rNight:25,rHol:35,holMode:"flat",holFlat:8000,tripFlat:3000}},queues:{},downloads:null};
+const S={db:null,uid:null,months:{},settings:{mode:"auto",daily:8,target:160,startDay:21,targets:{},active:null,pay:{basis:"monthly",salary:0,avg:163.3,hourly:0,rIn:0,rOver:25,r60:50,rNight:25,rHol:35,holMode:"flat",holFlat:8000,tripFlat:3000}},queues:{},downloads:null};
 const LS="kintai:";
 /* 端末内保存：メモリ上の復号済みデータ（CACHE）を正とし、書き込み時にパスコードの鍵で暗号化する */
 const LOCK_KEY=LS+"lock";const CACHE={};let CKEY=null;const writeChain={};
@@ -727,8 +730,27 @@ function nightMin(r,now){
   return Math.max(0,Math.min(n,workMin(r,now)));
 }
 const isNightNow=d=>d.getHours()>=FLEX_END||d.getHours()<FLEX_START;
-function workdays(mk){const [y,m]=mk.split("-").map(Number);const n=new Date(y,m,0).getDate();let c=0;for(let d=1;d<=n;d++)if(!isHoliday(mk+"-"+pad(d)))c++;return c;}
-const monthTarget=mk=>{const md=S.months[mk];if(md&&typeof md.target==="number")return md.target;return S.settings.mode==="auto"?workdays(mk)*S.settings.daily:S.settings.target;};
+/* 集計期間（締め日）：startDay日〜翌月(startDay-1)日。期間は終わりの月で呼ぶ（10月度＝9/21〜10/20） */
+const startDay=()=>{const d=Number(S.settings.startDay);return d>=1&&d<=28?d:1;};
+function periodDays(pk){
+  const [y,m]=pk.split("-").map(Number);const sd=startDay();const out=[];
+  let d=sd===1?new Date(y,m-1,1):new Date(y,m-2,sd);const end=sd===1?new Date(y,m,0):new Date(y,m-1,sd-1);
+  while(d<=end){out.push(dayKey(d));d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1);}
+  return out;
+}
+function periodOf(key){const [y,m,d]=parseKey(key);const sd=startDay();if(sd>1&&d>=sd){const x=new Date(y,m,1);return x.getFullYear()+"-"+pad(x.getMonth()+1);}return key.slice(0,7);}
+async function loadPeriod(pk){const ms=[...new Set(periodDays(pk).map(monthOf))];await Promise.all(ms.map(loadMonth));}
+const periodLoaded=pk=>periodDays(pk).every(k=>S.months[monthOf(k)]);
+function periodLabel(pk){const [y,m]=pk.split("-").map(Number);return y+"年"+m+"月"+(startDay()===1?"":"度");}
+function periodRange(pk){const ds=periodDays(pk);return md2(ds[0])+"〜"+md2(ds[ds.length-1]);}
+function periodText(){const sd=startDay();return sd===1?"毎月1日〜月末":"毎月"+sd+"日〜翌月"+(sd-1)+"日";}
+function workdays(pk){return periodDays(pk).filter(k=>!isHoliday(k)).length;}
+function targetOverride(pk){
+  const t=S.settings.targets||{};if(typeof t[pk]==="number")return t[pk];
+  if(startDay()===1){const md=S.months[pk];if(md&&typeof md.target==="number")return md.target;}
+  return null;
+}
+const monthTarget=pk=>{const o=targetOverride(pk);if(o!=null)return o;return S.settings.mode==="auto"?workdays(pk)*S.settings.daily:S.settings.target;};
 function status(){
   const a=S.settings.active;const r=a&&recOf(a);
   if(!r||!r.in||r.out)return "off";
@@ -736,13 +758,12 @@ function status(){
   const m=(r.moves||[]).at(-1);if(m&&!m.e)return "move";
   return "work";
 }
-function monthStats(mk,now){
-  const md=S.months[mk]||{days:{}};
-  const [y,m]=mk.split("-").map(Number);const n=new Date(y,m,0).getDate();
+function monthStats(pk,now){
+  const ds=periodDays(pk);const n=ds.length;
   const todayK=dayKey(new Date(now));
   const st={days:0,counted:0,holPrem:0,holPremDays:0,holPend:0,holPendDays:0,furiDays:0,night:0,move:0,tripDays:0,remainDays:0};
-  for(let d=1;d<=n;d++){
-    const key=mk+"-"+pad(d);const r=md.days[key];const hol=isHoliday(key);
+  for(const key of ds){
+    const r=recOf(key);const hol=isHoliday(key);
     if(r&&r.in){
       const w=workMin(r,now);st.days++;st.night+=nightMin(r,now);
       if(hol){if(r.holWork==="premium"){st.holPrem+=w;st.holPremDays++;}else{st.holPend+=w;st.holPendDays++;}}
@@ -752,7 +773,7 @@ function monthStats(mk,now){
     if(r&&r.trip)st.tripDays++;
     if(!hol&&(key>todayK||(key===todayK&&!(r&&r.in))))st.remainDays++;
   }
-  st.target=monthTarget(mk)*60;
+  st.target=monthTarget(pk)*60;
   st.diff=st.counted-st.target;
   st.over=Math.max(0,st.diff);
   st.legal=40*n/7*60;
@@ -823,8 +844,8 @@ function renderRecorder(){
     ["実働",r&&r.in?dur(workMin(r,now)):"0:00"],["深夜",r&&r.in?dur(nightMin(r,now)):"0:00"]
   ];
   $("todayline").innerHTML=cells.map(c=>'<div><dt>'+c[0]+'</dt><dd class="dot">'+c[1]+'</dd></div>').join("");
-  const mk=tk.slice(0,7);
-  if(S.months[mk]){
+  const mk=periodOf(tk);
+  if(periodLoaded(mk)){
     const st=monthStats(mk,now);
     const b=$("bal");b.textContent=sdur(st.diff);b.className="val dot "+(st.diff>=0.5?"plus":st.diff<=-0.5?"minus":"");
     const remain=st.target-st.counted;
@@ -848,13 +869,13 @@ function renderActions(){
   else{mk("休憩終了","bend","sub");if(trip)mk("移動開始","mstart","trip");mk("終業","out");}
 }
 function renderMonth(){
-  const [y,m]=viewMonth.split("-").map(Number);
-  $("mtitle").textContent=y+"年"+m+"月";
-  const md=S.months[viewMonth]||{days:{},cal:{},furiOf:{}};
-  const n=new Date(y,m,0).getDate();const now=Date.now();const todayK=dayKey(new Date());
+  const pk=viewMonth;const ds=periodDays(pk);
+  $("mtitle").innerHTML=esc(periodLabel(pk))+(startDay()===1?"":'<span style="font-size:.8rem;font-weight:400;color:var(--muted);margin-left:8px">'+periodRange(pk)+"</span>");
+  const now=Date.now();const todayK=dayKey(new Date());
   let rows="";
-  for(let d=1;d<=n;d++){
-    const key=viewMonth+"-"+pad(d);const wd=new Date(y,m-1,d).getDay();const r=md.days[key];
+  for(const key of ds){
+    const [y,m,d]=parseKey(key);const md=mdOf(key)||{days:{},cal:{},furiOf:{}};
+    const wd=new Date(y,m-1,d).getDay();const r=md.days[key];
     const ph=plannedHoliday(key);
     const cls=[ph?(wd===6&&!JP_HOL.has(key)&&!md.cal[key]&&!md.furiOf[key]?"sat":"hday"):"",key===todayK?"today":""].join(" ").trim();
     let tIn='<span class="dim">—</span>',tOut="",tB="",tM="",tW="",tN="";
@@ -866,12 +887,13 @@ function renderMonth(){
       tW='<span class="dot">'+dur(workMin(r,now))+"</span>";
       const nm=nightMin(r,now);tN=nm>0?'<span class="dot">'+dur(nm)+"</span>":"";
     }
-    rows+='<tr class="'+cls+'" data-k="'+key+'" tabindex="0" aria-label="'+m+"月"+d+'日の記録を修正"><td class="dot">'+d+'</td><td class="wd">'+WD[wd]+(JP_HOL.has(key)?"祝":"")+'</td><td><div style="display:flex;gap:4px">'+chips(key,now)+"</div></td><td>"+tIn+"</td><td>"+tOut+'</td><td class="num">'+tB+'</td><td class="num">'+tM+'</td><td class="num">'+tW+'</td><td class="num">'+tN+'</td><td class="memo">'+(r&&r.note?esc(r.note):"")+"</td></tr>";
+    const dlab=startDay()===1?String(d):m+"/"+d;
+    rows+='<tr class="'+cls+'" data-k="'+key+'" tabindex="0" aria-label="'+m+"月"+d+'日の記録を修正"><td class="dot">'+dlab+'</td><td class="wd">'+WD[wd]+(JP_HOL.has(key)?"祝":"")+'</td><td><div style="display:flex;gap:4px">'+chips(key,now)+"</div></td><td>"+tIn+"</td><td>"+tOut+'</td><td class="num">'+tB+'</td><td class="num">'+tM+'</td><td class="num">'+tW+'</td><td class="num">'+tN+'</td><td class="memo">'+(r&&r.note?esc(r.note):"")+"</td></tr>";
   }
   $("rows").innerHTML=rows;
-  const st=monthStats(viewMonth,now);
-  if(document.activeElement!==$("mTarget"))$("mTarget").value=monthTarget(viewMonth);
-  $("targetNote").textContent=(typeof md.target==="number"?"この月だけの設定です（空欄にすると標準に戻ります）":S.settings.mode==="auto"?"所定労働日数"+workdays(viewMonth)+"日 × "+S.settings.daily+"時間で自動計算":"固定値を使用")+"。法定総枠は"+dur(st.legal)+"です。";
+  const st=monthStats(pk,now);
+  if(document.activeElement!==$("mTarget"))$("mTarget").value=monthTarget(pk);
+  $("targetNote").textContent=(targetOverride(pk)!=null?"この期間だけの設定です（空欄にすると標準に戻ります）":S.settings.mode==="auto"?"所定労働日数"+workdays(pk)+"日 × "+S.settings.daily+"時間で自動計算":"固定値を使用")+"。法定総枠は"+dur(st.legal)+"です。";
   const diffCls=st.diff>=0.5?"plus":st.diff<=-0.5?"minus":"";
   const tot=[
     ["実働（休日労働を除く）",dur(st.counted),""],["過不足",sdur(st.diff),diffCls],
@@ -1003,12 +1025,11 @@ async function saveEdit(){
 
 /* ---------- CSV ---------- */
 function buildCsv(){
-  const [y,m]=viewMonth.split("-").map(Number);const md=S.months[viewMonth]||{days:{},furiOf:{}};
-  const n=new Date(y,m,0).getDate();const now=Date.now();
+  const pk=viewMonth;const now=Date.now();
   const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
   const lines=[["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働の扱い","振替休日","メモ"].map(q).join(",")];
-  for(let d=1;d<=n;d++){
-    const key=viewMonth+"-"+pad(d);const r=md.days[key];
+  for(const key of periodDays(pk)){
+    const [y,m,d]=parseKey(key);const md=mdOf(key)||{days:{},furiOf:{}};const r=md.days[key];
     const kind=md.furiOf[key]?"振替休日（"+md.furiOf[key]+"分）":plannedHoliday(key)?"休日":"出勤日";
     const row=[key,WD[new Date(y,m-1,d).getDay()],kind,r&&r.trip?"出張":"","","","","","","","","",r&&r.note||""];
     if(r&&r.in){
@@ -1018,7 +1039,7 @@ function buildCsv(){
     }
     lines.push(row.map(q).join(","));
   }
-  const st=monthStats(viewMonth,now);
+  const st=monthStats(pk,now);
   lines.push("");
   [["総労働時間",dur(st.target)],["実働（休日労働を除く）",dur(st.counted)],["過不足",sdur(st.diff)],["時間外",dur(st.over)],["うち法定総枠の超過",dur(st.overLegal)],
    ["深夜労働",dur(st.night)],["休日労働（割増）",dur(st.holPrem)],["休日出勤の未処理",dur(st.holPend)],["うち移動時間",dur(st.move)]]
@@ -1031,28 +1052,35 @@ function buildCsv(){
 }
 
 /* ---------- events ---------- */
-async function showMonth(mk){viewMonth=mk;await loadMonth(mk);renderMonth();}
+async function showMonth(pk){viewMonth=pk;await loadPeriod(pk);renderMonth();}
 function shift(delta){const [y,m]=viewMonth.split("-").map(Number);const d=new Date(y,m-1+delta,1);showMonth(d.getFullYear()+"-"+pad(d.getMonth()+1));}
 $("prev").onclick=()=>shift(-1);$("next").onclick=()=>shift(1);
-$("thisMonth").onclick=()=>showMonth(dayKey(new Date()).slice(0,7));
+$("thisMonth").onclick=()=>showMonth(periodOf(dayKey(new Date())));
 $("rows").addEventListener("click",e=>{const tr=e.target.closest("tr[data-k]");if(tr)openEdit(tr.dataset.k);});
 $("rows").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const tr=e.target.closest("tr[data-k]");if(tr){e.preventDefault();openEdit(tr.dataset.k);}}});
 $("editForm").addEventListener("submit",async e=>{e.preventDefault();if(await saveEdit())$("edit").close();});
 $("eCancel").onclick=()=>$("edit").close();
 $("eDelete").onclick=async()=>{$("eIn").value="";$("eOut").value="";$("eHol").value="";if(await saveEdit())$("edit").close();};
 $("mTarget").addEventListener("change",()=>{
-  const md=S.months[viewMonth];const v=Number($("mTarget").value);
-  if($("mTarget").value===""||isNaN(v))delete md.target;else md.target=Math.max(0,v);
-  saveMonth(viewMonth);renderAll();
+  const pk=viewMonth;const v=Number($("mTarget").value);S.settings.targets=S.settings.targets||{};
+  if($("mTarget").value===""||isNaN(v))delete S.settings.targets[pk];else S.settings.targets[pk]=Math.max(0,v);
+  if(startDay()===1){const md=S.months[pk];if(md&&typeof md.target==="number"){delete md.target;saveMonth(pk);}}
+  saveSettings();renderAll();
 });
 function fillPayUI(){const P=S.settings.pay;$("pBasis").value=P.basis;$("pSalary").value=P.salary||"";$("pAvg").value=P.avg;$("pHourly").value=P.hourly||"";
   $("rIn").value=P.rIn;$("rOver").value=P.rOver;$("r60").value=P.r60;$("rNight").value=P.rNight;$("rHol").value=P.rHol;$("pHolMode").value=P.holMode;$("pHolFlat").value=P.holFlat;$("pTripFlat").value=P.tripFlat;syncPayUI();}
 function syncPayUI(){const m=$("pBasis").value==="monthly";$("wSalary").hidden=!m;$("wAvg").hidden=!m;$("wHourly").hidden=m;
   const f=$("pHolMode").value==="flat";$("wHolFlat").hidden=!f;$("wRHol").hidden=f;}
 $("pBasis").addEventListener("change",syncPayUI);$("pHolMode").addEventListener("change",syncPayUI);
+function fillStartDayUI(){
+  const sel=$("setStartDay");if(!sel.options.length){for(let d=1;d<=28;d++){const o=document.createElement("option");o.value=d;o.textContent=d===1?"1日始まり（月末締め）":d+"日始まり（"+(d-1)+"日締め）";sel.appendChild(o);}}
+  sel.value=String(startDay());$("ruleSd").textContent=periodText()+(startDay()===1?"":"（例：10月度＝9/"+startDay()+"〜10/"+(startDay()-1)+"）");
+  $("balLbl").textContent=startDay()===1?"今月の過不足":"今期間の過不足";
+}
 function syncModeUI(){const a=$("setMode").value==="auto";$("wDaily").hidden=!a;$("wTarget").hidden=a;}
 $("setMode").addEventListener("change",syncModeUI);
-$("saveSettings").onclick=()=>{
+$("saveSettings").onclick=async()=>{
+  const newSd=Number($("setStartDay").value)||1;const sdChanged=newSd!==startDay();S.settings.startDay=newSd;
   S.settings.mode=$("setMode").value;
   S.settings.daily=Math.min(24,Math.max(0,Number($("setDaily").value)||8));
   S.settings.target=Math.max(0,Number($("setTarget").value)||160);
@@ -1060,7 +1088,9 @@ $("saveSettings").onclick=()=>{
   P.basis=$("pBasis").value;P.salary=num("pSalary",0,0);P.avg=num("pAvg",163.3,1);P.hourly=num("pHourly",0,0);
   P.rIn=num("rIn",0,0);P.rOver=num("rOver",25,25);P.r60=num("r60",50,50);P.rNight=num("rNight",25,25);P.rHol=num("rHol",35,35);P.holMode=$("pHolMode").value;P.holFlat=num("pHolFlat",8000,0);P.tripFlat=num("pTripFlat",0,0);
   fillPayUI();
-  saveSettings();renderAll();
+  saveSettings();fillStartDayUI();
+  if(sdChanged){viewMonth=periodOf(dayKey(new Date()));await loadPeriod(viewMonth);}
+  renderAll();
   const b=$("saveSettings");b.textContent="保存しました";setTimeout(()=>b.textContent="設定を保存",1500);
 };
 const canSaveFiles=()=>!!S.downloads||!window.claude;
@@ -1077,7 +1107,7 @@ async function saveFile(name,text,mime){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);return true;
 }
-$("csv").onclick=()=>saveFile("勤怠_"+viewMonth+".csv",buildCsv(),"text/csv");
+$("csv").onclick=()=>saveFile("勤怠_"+periodLabel(viewMonth)+".csv",buildCsv(),"text/csv");
 async function collectBackup(){
   const months={};
   if(S.db){const q=await S.db.collection("data/users/"+S.uid).get();q.docs.forEach(d=>{if(d.id.startsWith("m-"))months[d.id.slice(2)]=clone(d.data());});}
@@ -1160,9 +1190,11 @@ $("bkFile").addEventListener("change",async()=>{
   }
   if(b.settings){const x=b.settings;
     if(x.mode==="auto"||x.mode==="fixed")S.settings.mode=x.mode;if(typeof x.daily==="number")S.settings.daily=x.daily;if(typeof x.target==="number")S.settings.target=x.target;
+    if(typeof x.startDay==="number")S.settings.startDay=x.startDay;if(x.targets&&typeof x.targets==="object")S.settings.targets=Object.assign(S.settings.targets||{},x.targets);
     if(x.pay&&typeof x.pay==="object")Object.assign(S.settings.pay,x.pay);
     if(!S.settings.active&&x.active)S.settings.active=x.active;
-    saveSettings();fillPayUI();$("setTarget").value=S.settings.target;$("setDaily").value=S.settings.daily;$("setMode").value=S.settings.mode;syncModeUI();
+    saveSettings();fillPayUI();$("setTarget").value=S.settings.target;$("setDaily").value=S.settings.daily;$("setMode").value=S.settings.mode;syncModeUI();fillStartDayUI();
+    viewMonth=periodOf(dayKey(new Date()));await loadPeriod(viewMonth);
   }
   if(S.settings.active)await loadMonth(monthOf(S.settings.active));
   lastActionsKey="";renderAll();$("bkMsg").textContent=n+"か月分を読み込みました。";
@@ -1170,17 +1202,17 @@ $("bkFile").addEventListener("change",async()=>{
 
 /* ---------- Excel書き出し ---------- */
 async function xlsxData(year,includePay){
-  for(let m=1;m<=12;m++)await loadMonth(year+"-"+pad(m));
+  for(let m=1;m<=12;m++)await loadPeriod(year+"-"+pad(m));
   const now=Date.now();const months=[];
   for(let m=1;m<=12;m++){
-    const mk=year+"-"+pad(m);const md=S.months[mk];
-    const has=Object.values(md.days).some(r=>r&&r.in)||Object.keys(md.cal).length||Object.keys(md.furiOf).length||typeof md.target==="number";
+    const pk=year+"-"+pad(m);const ds=periodDays(pk);
+    const has=ds.some(k=>{const md=mdOf(k);const r=md&&md.days[k];return (r&&(r.in||r.trip))||(md&&(md.cal[k]||md.furiOf[k]));})||targetOverride(pk)!=null;
     if(!has)continue;
-    const n=new Date(year,m,0).getDate();const rows=[];
-    for(let d=1;d<=n;d++){
-      const key=mk+"-"+pad(d);const r=md.days[key];const dt=new Date(year,m-1,d);const mid=dt.getTime();
+    const rows=[];
+    for(const key of ds){
+      const [yy,mm,d]=parseKey(key);const md=mdOf(key);const r=md.days[key];const dt=new Date(yy,mm-1,d);const mid=dt.getTime();
       const kind=md.furiOf[key]?"振替休日":isHoliday(key)?"休日":"出勤日";
-      const row={serial:(Date.UTC(year,m-1,d)-Date.UTC(1899,11,30))/86400000,wd:WD[dt.getDay()]+(JP_HOL.has(key)?"・祝":""),kind,trip:!!(r&&r.trip),note:(r&&r.note)||"",inT:null,outT:null,brk:0,move:0,hol:""};
+      const row={serial:(Date.UTC(yy,mm-1,d)-Date.UTC(1899,11,30))/86400000,wd:WD[dt.getDay()]+(JP_HOL.has(key)?"・祝":""),kind,trip:!!(r&&r.trip),note:(r&&r.note)||"",inT:null,outT:null,brk:0,move:0,hol:""};
       if(r&&r.in){
         const t=ms=>Math.round((ms-mid)/60000)/1440;
         row.inT=t(r.in);row.outT=r.out?t(r.out):null;
@@ -1189,13 +1221,13 @@ async function xlsxData(year,includePay){
       }
       rows.push(row);
     }
-    months.push({label:year+"年"+m+"月",rows,target:typeof md.target==="number"?md.target:null});
+    months.push({label:periodLabel(pk),range:startDay()===1?"":periodRange(pk),rows,target:targetOverride(pk)});
   }
-  return {year,months,includePay,settings:{mode:S.settings.mode,daily:S.settings.daily,target:S.settings.target,pay:clone(S.settings.pay)}};
+  return {year,months,includePay,settings:{mode:S.settings.mode,daily:S.settings.daily,target:S.settings.target,periodText:periodText(),pay:clone(S.settings.pay)}};
 }
 $("xlsx").onclick=async()=>{
   const y=Number(viewMonth.slice(0,4));
-  const v=await askDialog({title:"Excelで保存",text:"選んだ年の記録を、月ごとのシートと年間まとめのシートにして書き出します。",
+  const v=await askDialog({title:"Excelで保存",text:"選んだ年の記録を、期間（月度）ごとのシートと年間まとめのシートにして書き出します。",
     fields:[{id:"year",label:"年",type:"select",options:[[String(y),y+"年"],[String(y-1),(y-1)+"年"]],value:String(y)},
             {id:"pay",label:"月給の設定と手当の試算を含める",type:"checkbox",value:true}],ok:"書き出す"});
   if(!v)return;
@@ -1281,12 +1313,13 @@ async function init(){
   let s=null;
   if(S.db){try{const x=await ref("settings").get();if(x.exists)s=clone(x.data());}catch(e){}}
   else s=lsGet("settings");
-  if(s){if(s.mode==="auto"||s.mode==="fixed")S.settings.mode=s.mode;if(typeof s.daily==="number")S.settings.daily=s.daily;if(typeof s.target==="number")S.settings.target=s.target;S.settings.active=s.active||null;if(s.pay&&typeof s.pay==="object")Object.assign(S.settings.pay,s.pay);}
+  if(s){if(s.mode==="auto"||s.mode==="fixed")S.settings.mode=s.mode;if(typeof s.daily==="number")S.settings.daily=s.daily;if(typeof s.target==="number")S.settings.target=s.target;if(typeof s.startDay==="number")S.settings.startDay=s.startDay;if(s.targets&&typeof s.targets==="object")S.settings.targets=s.targets;S.settings.active=s.active||null;if(s.pay&&typeof s.pay==="object")Object.assign(S.settings.pay,s.pay);}
   fillPayUI();
   $("setTarget").value=S.settings.target;$("setDaily").value=S.settings.daily;$("setMode").value=S.settings.mode;syncModeUI();
-  const now=new Date();const cur=dayKey(now).slice(0,7);
+  fillStartDayUI();
+  const now=new Date();viewMonth=periodOf(dayKey(now));
   const nx=new Date(now.getFullYear(),now.getMonth()+1,1);const nxk=nx.getFullYear()+"-"+pad(nx.getMonth()+1);
-  await Promise.all([loadMonth(cur),loadMonth(nxk)]);
+  await Promise.all([loadPeriod(viewMonth),loadMonth(nxk)]);
   if(S.settings.active)await loadMonth(monthOf(S.settings.active));
   $("app").classList.remove("loading");setSync("saved");
   renderAll();
