@@ -234,6 +234,7 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
       <dt>フレキシブルタイム</dt><dd>5:00〜22:00</dd>
       <dt>深夜労働</dt><dd>22:00〜5:00の勤務を自動で集計</dd>
       <dt>休日</dt><dd>土・日・祝日。休日に働いた日は振替休日か割増賃金（1日8,000円）を選択</dd>
+      <dt>出張</dt><dd>移動と業務を分けて記録（どちらも労働時間）。出張手当は1日3,000円</dd>
       <dt>時間外</dt><dd>月の実働が総労働時間を超えた分</dd>
     </dl>
     <div class="srow">
@@ -266,6 +267,11 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
         <select id="pHolMode"><option value="flat">1日あたり定額</option><option value="rate">時間 × 割増率で計算</option></select>
       </label>
       <label class="f" id="wHolFlat">1日あたりの額（円）<input type="number" id="pHolFlat" min="0" step="500"></label>
+    </fieldset>
+    <fieldset class="wage">
+      <legend>出張手当</legend>
+      <label class="f">1日あたりの額（円）<input type="number" id="pTripFlat" min="0" step="500"></label>
+      <span class="hint" style="margin:0">「出張」にチェックした日の数で計算します。0にすると計算しません。</span>
     </fieldset>
     <p class="hint">月給には基本給のほか、割増賃金の基礎に含める手当（役職手当など）を足した額を入れてください。家族手当・通勤手当・住宅手当などは法律上除外できます。月平均所定労働時間は「(365日 − 年間休日数) × 8時間 ÷ 12」で求められます（年間休日120日なら163.3時間）。割増率の初期値は法定の最低基準です。</p>
     <div class="srow"><button class="primary" id="saveSettings">設定を保存</button></div>
@@ -518,10 +524,14 @@ function build(data){
       prow(Pr+5,"休日出勤手当","E"+(S+11),holH*24,'IF('+SET+'$B$17="定額","定額",1+'+SET+'$B$16)',flat?"定額":1+P.rHol/100,
         'IF('+SET+'$B$17="定額",E'+(S+12)+'*'+SET+'$B$18,ROUND(E'+(Pr+5)+'*'+B+'*(1+'+SET+'$B$16),0))',a4);
       prow(Pr+6,"深夜割増","E"+(S+10),night*24,SET+"$B$15",P.rNight/100,"ROUND(E"+(Pr+6)+"*"+B+"*F"+(Pr+6)+",0)",a5);
-      sh.set(Pr+7,0,{v:"合計（試算）",s:12});sh.merges.push("A"+(Pr+7)+":D"+(Pr+7));
-      sh.set(Pr+7,6,{f:"SUM(G"+(Pr+2)+":G"+(Pr+6)+")",v:a1+a2+a3+a4+a5,s:16});
-      sh.set(Pr+8,0,{v:"未処理の休日出勤は含みません。金額は区分ごとに1円未満を四捨五入しています。深夜割増は割増分のみです。",s:15});
-      ref.rows.pay="G"+(Pr+7);ref.vals.pay=a1+a2+a3+a4+a5;
+      const a6=trips*(P.tripFlat||0);
+      sh.set(Pr+7,0,{v:"出張手当（日数 × 定額）"});sh.merges.push("A"+(Pr+7)+":D"+(Pr+7));
+      sh.set(Pr+7,4,{f:"E"+(S+14),v:trips,s:18});sh.set(Pr+7,5,{v:"定額",s:14});
+      sh.set(Pr+7,6,{f:"E"+(Pr+7)+"*"+SET+"$B$19",v:a6,s:7});
+      sh.set(Pr+8,0,{v:"合計（試算）",s:12});sh.merges.push("A"+(Pr+8)+":D"+(Pr+8));
+      sh.set(Pr+8,6,{f:"SUM(G"+(Pr+2)+":G"+(Pr+7)+")",v:a1+a2+a3+a4+a5+a6,s:16});
+      sh.set(Pr+9,0,{v:"未処理の休日出勤は含みません。金額は区分ごとに1円未満を四捨五入しています。深夜割増は割増分のみです。出張手当の行は時間ではなく日数です。",s:15});
+      ref.rows.pay="G"+(Pr+8);ref.vals.pay=a1+a2+a3+a4+a5+a6;
     }
     refs.push(ref);
     return sh;
@@ -564,6 +574,7 @@ function build(data){
     srow(16,"休日労働（割増率方式の場合）",{v:P.rHol/100,s:8},"法定休日の最低は35%");
     srow(17,"休日出勤手当の方式",{v:flat?"定額":"割増率",s:10},"「定額」または「割増率」");
     srow(18,"休日出勤手当 1日あたり（円）",{v:P.holFlat,s:13},"会社規定");
+    srow(19,"出張手当 1日あたり（円）",{v:P.tripFlat||0,s:13},"会社規定（出張の日1日ごと）");
   }
 
   const sheets=[sum,...monthSheets,st];
@@ -602,7 +613,7 @@ const JP_HOL=new Set(["2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-
 const FLEX_START=5,FLEX_END=22; // フレキシブルタイム 5:00〜22:00、それ以外は深夜
 
 /* ---------- storage ---------- */
-const S={db:null,uid:null,months:{},settings:{mode:"auto",daily:8,target:160,active:null,pay:{basis:"monthly",salary:0,avg:163.3,hourly:0,rIn:0,rOver:25,r60:50,rNight:25,rHol:35,holMode:"flat",holFlat:8000}},queues:{},downloads:null};
+const S={db:null,uid:null,months:{},settings:{mode:"auto",daily:8,target:160,active:null,pay:{basis:"monthly",salary:0,avg:163.3,hourly:0,rIn:0,rOver:25,r60:50,rNight:25,rHol:35,holMode:"flat",holFlat:8000,tripFlat:3000}},queues:{},downloads:null};
 const LS="kintai:";
 /* 端末内保存：メモリ上の復号済みデータ（CACHE）を正とし、書き込み時にパスコードの鍵で暗号化する */
 const LOCK_KEY=LS+"lock";const CACHE={};let CKEY=null;const writeChain={};
@@ -736,8 +747,9 @@ function monthStats(mk,now){
       const w=workMin(r,now);st.days++;st.night+=nightMin(r,now);
       if(hol){if(r.holWork==="premium"){st.holPrem+=w;st.holPremDays++;}else{st.holPend+=w;st.holPendDays++;}}
       else{st.counted+=w;if(r.holWork==="furikae")st.furiDays++;}
-      if(r.trip){st.move+=moveMin(r,now);st.tripDays++;}
+      if(r.trip)st.move+=moveMin(r,now);
     }
+    if(r&&r.trip)st.tripDays++;
     if(!hol&&(key>todayK||(key===todayK&&!(r&&r.in))))st.remainDays++;
   }
   st.target=monthTarget(mk)*60;
@@ -875,8 +887,8 @@ function renderMonth(){
 const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
 function baseRate(){const p=S.settings.pay;const b=p.basis==="hourly"?p.hourly:(p.avg>0?p.salary/p.avg:0);return b>0?b:0;}
 function payCalc(st){
-  const p=S.settings.pay;const base=baseRate();const flat=p.holMode==="flat";
-  if(!base&&!flat)return null;
+  const p=S.settings.pay;const base=baseRate();const flat=p.holMode==="flat";const trip=p.tripFlat>0;
+  if(!base&&!flat&&!trip)return null;
   const inMin=Math.max(0,Math.min(st.counted,st.legal)-Math.max(st.target,0));
   const o=st.overLegal,o60=Math.min(o,3600),o60p=Math.max(0,o-3600);
   const rows=[
@@ -892,15 +904,16 @@ function payCalc(st){
     h.name="休日出勤手当（定額）";h.desc=yen(p.holFlat)+" × "+st.holPremDays+"日";h.rate=null;h.amt=p.holFlat*st.holPremDays;
     if(base)legalHol=Math.round(st.holPrem/60*base*1.35);
   }
+  if(trip)rows.push({name:"出張手当（定額）",desc:yen(p.tripFlat)+" × "+st.tripDays+"日",min:null,rate:null,amt:p.tripFlat*st.tripDays});
   const used=base?rows:rows.filter(r=>r.rate===null);
   return {base,rows:used,total:used.reduce((a,r)=>a+r.amt,0),legalHol};
 }
 function renderPay(st){
   const pc=payCalc(st);
-  if(!pc){$("payBase").textContent="";$("payBody").innerHTML='<p class="pempty">勤務設定で月給か時給を入力すると、残業代・休日手当・深夜手当を自動で計算します。</p>';return;}
+  if(!pc){$("payBase").textContent="";$("payBody").innerHTML='<p class="pempty">勤務設定で月給か時給を入力すると、残業代・休日手当・深夜手当・出張手当を自動で計算します。</p>';return;}
   $("payBase").textContent=pc.base?"基礎時給 "+yen(pc.base)+"（"+pc.base.toFixed(2)+"円）":"基礎時給が未設定のため、休日出勤手当のみ表示しています";
   let h='<div class="tablewrap"><table class="paytbl"><thead><tr><th>区分</th><th class="num">時間</th><th class="num">倍率</th><th class="num">金額</th></tr></thead><tbody>';
-  pc.rows.forEach(r=>{h+='<tr style="cursor:default"><td>'+r.name+'<div style="font-size:.78rem;color:var(--muted)">'+r.desc+'</div></td><td class="num dot">'+dur(r.min)+'</td><td class="num dot">'+(r.rate===null?"定額":r.rate.toFixed(2))+'</td><td class="num dot">'+yen(r.amt)+'</td></tr>';});
+  pc.rows.forEach(r=>{h+='<tr style="cursor:default"><td>'+r.name+'<div style="font-size:.78rem;color:var(--muted)">'+r.desc+'</div></td><td class="num dot">'+(r.min===null?st.tripDays+"日":dur(r.min))+'</td><td class="num dot">'+(r.rate===null?"定額":r.rate.toFixed(2))+'</td><td class="num dot">'+yen(r.amt)+'</td></tr>';});
   h+='</tbody><tfoot><tr><td colspan="3">合計（試算）</td><td class="num dot paytotal">'+yen(pc.total)+'</td></tr></tfoot></table></div>';
   const notes=[];
   if(st.holPendDays)notes.push("休日出勤の未処理が"+st.holPendDays+"日あります。割増賃金を選ぶと休日労働に加算されます。");
@@ -1012,7 +1025,7 @@ function buildCsv(){
     .forEach(p=>lines.push(p.map(q).join(",")));
   const pc=payCalc(st);
   if(pc){lines.push("");lines.push([q("手当の試算"),q("時間"),q("倍率"),q("金額")].join(","));
-    pc.rows.forEach(r=>lines.push([r.name,dur(r.min),r.rate===null?"定額":r.rate.toFixed(2),Math.round(r.amt)].map(q).join(",")));
+    pc.rows.forEach(r=>lines.push([r.name,r.min===null?st.tripDays+"日":dur(r.min),r.rate===null?"定額":r.rate.toFixed(2),Math.round(r.amt)].map(q).join(",")));
     lines.push([q("合計"),q(""),q(""),q(Math.round(pc.total))].join(","));if(pc.base)lines.push([q("基礎時給"),q(pc.base.toFixed(2))].join(","));}
   return "\uFEFF"+lines.join("\r\n");
 }
@@ -1033,7 +1046,7 @@ $("mTarget").addEventListener("change",()=>{
   saveMonth(viewMonth);renderAll();
 });
 function fillPayUI(){const P=S.settings.pay;$("pBasis").value=P.basis;$("pSalary").value=P.salary||"";$("pAvg").value=P.avg;$("pHourly").value=P.hourly||"";
-  $("rIn").value=P.rIn;$("rOver").value=P.rOver;$("r60").value=P.r60;$("rNight").value=P.rNight;$("rHol").value=P.rHol;$("pHolMode").value=P.holMode;$("pHolFlat").value=P.holFlat;syncPayUI();}
+  $("rIn").value=P.rIn;$("rOver").value=P.rOver;$("r60").value=P.r60;$("rNight").value=P.rNight;$("rHol").value=P.rHol;$("pHolMode").value=P.holMode;$("pHolFlat").value=P.holFlat;$("pTripFlat").value=P.tripFlat;syncPayUI();}
 function syncPayUI(){const m=$("pBasis").value==="monthly";$("wSalary").hidden=!m;$("wAvg").hidden=!m;$("wHourly").hidden=m;
   const f=$("pHolMode").value==="flat";$("wHolFlat").hidden=!f;$("wRHol").hidden=f;}
 $("pBasis").addEventListener("change",syncPayUI);$("pHolMode").addEventListener("change",syncPayUI);
@@ -1045,7 +1058,7 @@ $("saveSettings").onclick=()=>{
   S.settings.target=Math.max(0,Number($("setTarget").value)||160);
   const P=S.settings.pay,num=(id,def,min)=>{const v=Number($(id).value);return isNaN(v)||$(id).value===""?def:Math.max(min,v);};
   P.basis=$("pBasis").value;P.salary=num("pSalary",0,0);P.avg=num("pAvg",163.3,1);P.hourly=num("pHourly",0,0);
-  P.rIn=num("rIn",0,0);P.rOver=num("rOver",25,25);P.r60=num("r60",50,50);P.rNight=num("rNight",25,25);P.rHol=num("rHol",35,35);P.holMode=$("pHolMode").value;P.holFlat=num("pHolFlat",8000,0);
+  P.rIn=num("rIn",0,0);P.rOver=num("rOver",25,25);P.r60=num("r60",50,50);P.rNight=num("rNight",25,25);P.rHol=num("rHol",35,35);P.holMode=$("pHolMode").value;P.holFlat=num("pHolFlat",8000,0);P.tripFlat=num("pTripFlat",0,0);
   fillPayUI();
   saveSettings();renderAll();
   const b=$("saveSettings");b.textContent="保存しました";setTimeout(()=>b.textContent="設定を保存",1500);
