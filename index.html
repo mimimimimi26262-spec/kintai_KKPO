@@ -320,8 +320,12 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
       </label>
       <label class="c" style="align-self:end;padding-bottom:8px"><input type="checkbox" id="eTrip">出張</label>
       <label class="f full">休暇
-        <select id="eLeave"><option value="">なし</option><option value="full">有給休暇（1日）</option><option value="am">有給休暇（午前半休）</option><option value="pm">有給休暇（午後半休）</option></select>
+        <select id="eLeave"><option value="">なし</option><option value="full">有給休暇（1日）</option><option value="am">有給休暇（午前半休）</option><option value="pm">有給休暇（午後半休）</option><option value="furi">振替休日</option></select>
       </label>
+      <label class="f full" id="eSrcWrap">どの休日出勤の振替ですか
+        <select id="eSrc"></select>
+      </label>
+      <label class="f full" id="eSrcDateWrap">休日出勤した（する）日<input type="date" id="eSrcDate"></label>
       <label class="f">始業<input type="time" id="eIn"></label>
       <label class="f">終業<input type="time" id="eOut"></label>
       <label class="f">休憩（分）<input type="number" id="eBreak" min="0" step="5"></label>
@@ -720,7 +724,7 @@ function plannedHoliday(key,ovOverride){
 // 実際の休日（振替休日を取った休日出勤日は出勤日扱い）
 function isHoliday(key){
   if(!plannedHoliday(key))return false;
-  const r=recOf(key);return !(r&&r.in&&r.holWork==="furikae");
+  const r=recOf(key);return !(r&&r.holWork==="furikae"&&(r.in||r.furiDate));
 }
 
 /* ---------- time calculations ---------- */
@@ -804,6 +808,8 @@ async function punch(kind){
     const mk=monthOf(today);await loadMonth(mk);
     const prev=S.months[mk].days[today]||{};
     const r={in:now,out:null,breaks:[],moves:[],trip:kind==="inTrip",note:prev.note||""};
+    if(prev.holWork==="furikae"&&prev.furiDate){r.holWork="furikae";r.furiDate=prev.furiDate;}
+    if(prev.leave==="am"||prev.leave==="pm")r.leave=prev.leave;
     if(kind==="inTrip")r.moves.push({s:now,e:null});
     S.months[mk].days[today]=r;S.settings.active=today;saveMonth(mk);saveSettings();
   }else{
@@ -828,6 +834,7 @@ function chips(key,now){
   const r=recOf(key);const md=mdOf(key);let h="";
   if(r&&r.trip)h+='<span class="chip trip">出張</span>';
   if(r&&r.leave&&!isHoliday(key))h+='<span class="chip leave">'+LEAVE_LABEL[r.leave]+'</span>';
+  if(r&&!r.in&&r.holWork==="furikae"&&r.furiDate)h+='<span class="chip off">休出予定→振替 '+md2(r.furiDate)+'</span>';
   if(r&&r.in&&plannedHoliday(key)){
     if(r.holWork==="furikae")h+='<span class="chip off">休出→振替'+(r.furiDate?" "+md2(r.furiDate):"")+'</span>';
     else if(r.holWork==="premium")h+='<span class="chip hol">休出・割増</span>';
@@ -967,20 +974,40 @@ function renderAll(){renderRecorder();renderActions();renderMonth();}
 
 /* ---------- editing ---------- */
 let editing=null,orig={};
+function natOff(key,ov){return ov==="off"?true:ov==="work"?false:natHol(key);}
 function updateHolUI(){
-  const ov=$("eDay").value;const planned=plannedHoliday(editing,ov||null);
-  $("eHolWrap").hidden=!(planned&&$("eIn").value);
+  const ov=$("eDay").value;const planned=plannedHoliday(editing,ov||null)&&!(mdOf(editing)&&mdOf(editing).furiOf[editing]&&!natOff(editing,ov||null));
+  $("eHolWrap").hidden=!planned;
   $("eFuriWrap").hidden=$("eHol").value!=="furikae";
   $("eMoveWrap").hidden=!$("eTrip").checked;
+  const lf=$("eLeave").value==="furi";
+  $("eSrcWrap").hidden=!lf;$("eSrcDateWrap").hidden=!(lf&&$("eSrc").value==="other");
 }
-function openEdit(key){
-  editing=key;const md=mdOf(key);const r=(md&&md.days[key])||{};const now=Date.now();
-  const [y,m,d]=parseKey(key);
+async function openEdit(key){
+  editing=key;const [y,m,d]=parseKey(key);
+  await Promise.all([-2,-1,0,1,2].map(k=>{const x=new Date(y,m-1+k,1);return loadMonth(x.getFullYear()+"-"+pad(x.getMonth()+1));}));
+  const md=mdOf(key);const r=(md&&md.days[key])||{};const now=Date.now();
   $("editTitle").textContent=y+"年"+m+"月"+d+"日（"+WD[new Date(y,m-1,d).getDay()]+"）の記録";
   const fo=md&&md.furiOf[key];
-  $("editNote").hidden=!fo;if(fo)$("editNote").textContent="この日は"+md2(fo)+"の休日出勤に対する振替休日です。変更する場合は"+md2(fo)+"の記録から行ってください。";
+  $("editNote").hidden=!fo;if(fo)$("editNote").textContent="この日は"+md2(fo)+"の休日出勤に対する振替休日です。";
   $("eDay").value=(md&&md.cal[key])||"";
-  $("eTrip").checked=!!r.trip;$("eLeave").value=r.leave||"";
+  $("eTrip").checked=!!r.trip;$("eLeave").value=fo?"furi":(r.leave||"");
+  // 振替元（休日出勤日）の候補：前後2か月の休日で、勤務記録があり未処理のもの・この日に紐づくもの
+  const sel=$("eSrc");sel.innerHTML="";
+  const base=new Date(y,m-1,d).getTime();const cands=[];
+  for(let k=-62;k<=62;k++){
+    const dk=dayKey(new Date(y,m-1,d+k));const mm=mdOf(dk);if(!mm)continue;const rr=mm.days[dk];
+    if(!rr||!plannedHoliday(dk)||(mm.furiOf[dk]))continue;
+    if(rr.holWork==="furikae"&&rr.furiDate&&rr.furiDate!==key)continue;
+    if(!rr.in&&!(rr.holWork==="furikae"&&rr.furiDate===key))continue;
+    if(rr.in&&rr.holWork==="premium")continue;
+    cands.push([dk,rr]);
+  }
+  cands.forEach(([dk,rr])=>{const [yy,mm,dd]=parseKey(dk);const o=document.createElement("option");o.value=dk;
+    o.textContent=mm+"/"+dd+"（"+WD[new Date(yy,mm-1,dd).getDay()]+"）"+(rr.in?"の休日出勤 "+hm(rr.in)+"〜"+(rr.out?hm(rr.out):""):"に出勤予定");sel.appendChild(o);});
+  const oo=document.createElement("option");oo.value="other";oo.textContent="日付を指定（これから休日出勤する日など）";sel.appendChild(oo);
+  sel.value=fo&&cands.some(c=>c[0]===fo)?fo:(fo?"other":(cands.length?cands[0][0]:"other"));
+  $("eSrcDate").value=fo&&sel.value==="other"?fo:"";
   $("eIn").value=r.in?hm(r.in):"";$("eOut").value=r.out?hm(r.out):"";
   orig.b=r.in?String(Math.round(breakMin(r,now))):"";orig.m=r.in?String(Math.round(moveMin(r,now))):"";
   $("eBreak").value=orig.b;$("eMove").value=orig.m;
@@ -991,24 +1018,58 @@ function openEdit(key){
   updateHolUI();
   $("edit").showModal();
 }
-["eDay","eTrip","eIn","eHol"].forEach(id=>$(id).addEventListener("input",updateHolUI));
-$("eDay").addEventListener("change",updateHolUI);$("eHol").addEventListener("change",updateHolUI);$("eTrip").addEventListener("change",updateHolUI);
+["eDay","eTrip","eIn","eHol","eLeave","eSrc"].forEach(id=>{$(id).addEventListener("input",updateHolUI);$(id).addEventListener("change",updateHolUI);});
 function toMs(key,t){const [y,m,d]=parseKey(key);const [h,mi]=t.split(":").map(Number);return new Date(y,m-1,d,h,mi).getTime();}
 async function unlinkFuri(src,date){
   if(!date)return;const mk=monthOf(date);const t=await loadMonth(mk);
   if(t.furiOf[date]===src){delete t.furiOf[date];saveMonth(mk);}
 }
+// 振替休日の日（target）から休日出勤日（src）への紐づけを外す
+async function unlinkSrc(src,target){
+  const sm=await loadMonth(monthOf(src));const sr=sm.days[src];
+  if(sr&&sr.holWork==="furikae"&&sr.furiDate===target){
+    delete sr.holWork;delete sr.furiDate;
+    if(!sr.in&&!sr.note&&!sr.trip&&!sr.leave)delete sm.days[src];
+    saveMonth(monthOf(src));
+  }
+}
 async function saveEdit(){
   const key=editing;const mk=monthOf(key);await loadMonth(mk);
   const md=S.months[mk];const old=md.days[key]||{};const now=Date.now();
-  const vin=$("eIn").value,vout=$("eOut").value,vb=$("eBreak").value,vm=$("eMove").value,note=$("eNote").value.trim(),trip=$("eTrip").checked,leave=$("eLeave").value;
+  const vin=$("eIn").value,vout=$("eOut").value,vb=$("eBreak").value,vm=$("eMove").value,note=$("eNote").value.trim(),trip=$("eTrip").checked;
+  let leave=$("eLeave").value;
   const dayv=$("eDay").value;
   const err=t=>{$("eErr").textContent=t;return false;};
   if(!vin&&vout)return err("終業だけを記録することはできません。始業時刻を入力してください。");
-  if(leave&&plannedHoliday(key,$("eDay").value||null))return err("休日には有給休暇を登録できません。");
+  const oldSrc=md.furiOf[key]||"";
+  // ---- 休暇欄で「振替休日」を選んだ場合 ----
+  let furiSrc="";
+  if(leave==="furi"){
+    if(vin)return err("振替休日の日は始業・終業を空欄にしてください。");
+    if(natOff(key,dayv||null))return err("この日はもともと休日です。振替休日には出勤日を選んでください。");
+    furiSrc=$("eSrc").value==="other"?$("eSrcDate").value:$("eSrc").value;
+    if(!furiSrc)return err("どの休日出勤の振替かを選んでください。");
+    if(furiSrc===key)return err("振替休日と休日出勤日には別の日を選んでください。");
+    const sm=await loadMonth(monthOf(furiSrc));
+    if(!plannedHoliday(furiSrc)||sm.furiOf[furiSrc])return err(md2(furiSrc)+"は休日ではありません。休日出勤した（する）日を選んでください。");
+    const sr=sm.days[furiSrc];
+    if(sr&&sr.holWork==="furikae"&&sr.furiDate&&sr.furiDate!==key)return err(md2(furiSrc)+"の休日出勤は、すでに"+md2(sr.furiDate)+"に振り替えています。");
+    const other=md.furiOf[key];
+    leave="";
+    if(other&&other!==furiSrc)await unlinkSrc(other,key);
+    const nr=sm.days[furiSrc]||{};
+    if(nr.holWork==="furikae"&&nr.furiDate&&nr.furiDate!==key)await unlinkFuri(furiSrc,nr.furiDate);
+    nr.holWork="furikae";nr.furiDate=key;sm.days[furiSrc]=nr;md.furiOf[key]=furiSrc;
+    if(monthOf(furiSrc)!==mk)saveMonth(monthOf(furiSrc));
+  }else if(oldSrc){
+    delete md.furiOf[key];await unlinkSrc(oldSrc,key);
+  }
+  if(leave&&plannedHoliday(key,dayv||null))return err("休日には有給休暇を登録できません。");
   if(leave==="full"&&vin)return err("1日の有給休暇の日は始業・終業を空欄にしてください。出勤した場合は半休を選んでください。");
-  const planned=plannedHoliday(key,dayv||null);
-  let holWork=vin&&planned?$("eHol").value:"";let furiDate=holWork==="furikae"?$("eFuri").value:"";
+  // ---- 休日出勤した日の側で振替を設定する場合 ----
+  const planned=!furiSrc&&plannedHoliday(key,dayv||null)&&!md.furiOf[key];
+  let holWork=planned?$("eHol").value:"";if(!vin&&holWork==="premium")holWork="";
+  let furiDate=holWork==="furikae"?$("eFuri").value:"";
   if(holWork==="furikae"){
     if(!furiDate)return err("振替休日の日付を選んでください。");
     if(furiDate===key)return err("振替休日には休日出勤した日と別の日を選んでください。");
@@ -1021,7 +1082,9 @@ async function saveEdit(){
   if(dayv)md.cal[key]=dayv;else delete md.cal[key];
   if(old.holWork==="furikae"&&old.furiDate&&old.furiDate!==furiDate)await unlinkFuri(key,old.furiDate);
   if(!vin){
-    if(note||trip||leave){md.days[key]={note,trip};if(leave)md.days[key].leave=leave;}else delete md.days[key];
+    const keep={};if(note)keep.note=note;if(trip)keep.trip=true;if(leave)keep.leave=leave;
+    if(holWork==="furikae"){keep.holWork="furikae";keep.furiDate=furiDate;}
+    if(Object.keys(keep).length)md.days[key]=keep;else delete md.days[key];
     if(S.settings.active===key){S.settings.active=null;saveSettings();}
   }else{
     const r={in:toMs(key,vin),out:null,breaks:old.breaks||[],moves:old.moves||[],trip,note};if(leave)r.leave=leave;
@@ -1036,10 +1099,10 @@ async function saveEdit(){
     if(r.out&&trip&&breakMin(r,now)+moveMin(r,now)>span)return err("休憩と移動の合計が勤務時間を超えています。");
     if(holWork){r.holWork=holWork;if(furiDate)r.furiDate=furiDate;}
     md.days[key]=r;
-    if(furiDate){const fm=monthOf(furiDate);S.months[fm].furiOf[furiDate]=key;if(fm!==mk)saveMonth(fm);}
     if(r.out&&S.settings.active===key){S.settings.active=null;saveSettings();}
     if(!r.out&&!S.settings.active&&key===dayKey(new Date())){S.settings.active=key;saveSettings();}
   }
+  if(furiDate){const fm=monthOf(furiDate);S.months[fm].furiOf[furiDate]=key;if(fm!==mk)saveMonth(fm);}
   saveMonth(mk);lastActionsKey="";renderAll();return true;
 }
 
