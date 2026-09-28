@@ -65,7 +65,7 @@ header.top h1{font-size:1.15rem;font-weight:700;margin:0}
 .status[data-s="break"] .lamp{background:#E0A100;box-shadow:0 0 0 4px color-mix(in srgb,#E0A100 22%,transparent)}
 .status[data-s="move"] .lamp{background:var(--trip);box-shadow:0 0 0 4px color-mix(in srgb,var(--trip) 22%,transparent)}
 .chip{font-size:.75rem;font-weight:500;border-radius:3px;padding:1px 7px;border:1px solid currentColor;white-space:nowrap}
-.chip.trip{color:var(--trip)} .chip.hol{color:var(--red)} .chip.off{color:var(--muted)} .chip.warn{color:#fff;background:var(--red);border-color:var(--red)} .chip.night{color:var(--blue)}
+.chip.trip{color:var(--trip)} .chip.leave{color:var(--green)} .chip.hol{color:var(--red)} .chip.off{color:var(--muted)} .chip.warn{color:#fff;background:var(--red);border-color:var(--red)} .chip.night{color:var(--blue)}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
 .actions button{font:inherit;font-weight:700;font-size:1.05rem;padding:14px 22px;border-radius:4px;cursor:pointer;min-width:130px;
   border:2px solid var(--btn);background:var(--btn);color:var(--btn-fg)}
@@ -235,6 +235,7 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
       <dt>フレキシブルタイム</dt><dd>5:00〜22:00</dd>
       <dt>深夜労働</dt><dd>22:00〜5:00の勤務を自動で集計</dd>
       <dt>休日</dt><dd>土・日・祝日。休日に働いた日は振替休日か割増賃金（1日8,000円）を選択</dd>
+      <dt>有給休暇</dt><dd>1日＝標準時間（8時間）、半休＝4時間を働いたものとして総労働時間に数える（法定外の時間外には含めない）</dd>
       <dt>出張</dt><dd>移動と業務を分けて記録（どちらも労働時間）。出張手当は1日3,000円</dd>
       <dt>時間外</dt><dd>月の実働が総労働時間を超えた分</dd>
     </dl>
@@ -318,6 +319,9 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
         <select id="eDay"><option value="">自動（土日祝は休日）</option><option value="work">出勤日</option><option value="off">休日（会社休業日など）</option></select>
       </label>
       <label class="c" style="align-self:end;padding-bottom:8px"><input type="checkbox" id="eTrip">出張</label>
+      <label class="f full">休暇
+        <select id="eLeave"><option value="">なし</option><option value="full">有給休暇（1日）</option><option value="am">有給休暇（午前半休）</option><option value="pm">有給休暇（午後半休）</option></select>
+      </label>
       <label class="f">始業<input type="time" id="eIn"></label>
       <label class="f">終業<input type="time" id="eOut"></label>
       <label class="f">休憩（分）<input type="number" id="eBreak" min="0" step="5"></label>
@@ -454,12 +458,12 @@ function build(data){
   const flat=P.holMode==="flat";
   const refs=[];
   const monthSheets=data.months.map(M=>{
-    const sh=newSheet(M.label);sh.cols=[7,7,10,6,8,8,8,8,8,8,10,30];sh.freeze=4;
+    const sh=newSheet(M.label);sh.cols=[7,7,10,6,8,8,8,8,8,8,10,10,8,30];sh.freeze=4;
     sh.set(1,0,{v:M.label+(M.range?"（"+M.range+"）":"")+" 勤怠表",s:1});
     sh.set(2,0,{v:"青字は記録、黒字は計算式です。時刻を直すと実働・深夜・集計・手当が再計算されます。深夜は休憩の位置を考慮せずに計算します。",s:15});
-    ["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働","メモ"].forEach((h,i)=>sh.set(4,i,{v:h,s:2}));
+    ["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働","休暇","有給時間","メモ"].forEach((h,i)=>sh.set(4,i,{v:h,s:2}));
     const n=M.rows.length,R=4+n;
-    let cnt=0,counted=0,night=0,holH=0,holD=0,pend=0,trips=0,move=0;
+    let cnt=0,counted=0,night=0,holH=0,holD=0,pend=0,trips=0,move=0,leaveD=0,leaveH=0;const daily=data.settings.daily;
     M.rows.forEach((d,i)=>{
       const r=5+i,hol=d.kind!=="出勤日";
       sh.set(r,0,{v:d.serial,s:hol?22:3});sh.set(r,1,{v:d.wd,s:hol?11:0});sh.set(r,2,{v:d.kind,s:hol?11:0});
@@ -476,7 +480,11 @@ function build(data){
       sh.set(r,8,{f:'IF(OR(E'+r+'="",F'+r+'=""),"",F'+r+'-E'+r+'-G'+r+')',v:iv,s:5});
       sh.set(r,9,{f:'IF(OR(E'+r+'="",F'+r+'=""),"",MAX(0,MIN(5/24,F'+r+')-E'+r+')+MAX(0,MIN(29/24,F'+r+')-MAX(22/24,E'+r+')))',v:jv,s:23});
       if(d.hol)sh.set(r,10,{v:d.hol,s:d.hol==="未処理"?11:21});
-      if(d.note)sh.set(r,11,{v:d.note,s:21});
+      if(d.leave)sh.set(r,11,{v:d.leave,s:21});
+      const lv=d.leave==="有給"?daily/24:(d.leave==="午前半休"||d.leave==="午後半休")?daily/48:"";
+      sh.set(r,12,{f:'IF(L'+r+'="有給",'+SET+'$B$3/24,IF(OR(L'+r+'="午前半休",L'+r+'="午後半休"),'+SET+'$B$3/48,""))',v:lv,s:23});
+      if(lv!==""){leaveH+=lv;leaveD+=d.leave==="有給"?1:0.5;}
+      if(d.note)sh.set(r,13,{v:d.note,s:21});
       if(d.kind==="出勤日"){cnt++;if(iv!=="")counted+=iv;}
       if(jv!=="")night+=jv;
       if(d.kind==="休日"&&d.hol==="割増"){holD++;if(iv!=="")holH+=iv;}
@@ -487,30 +495,34 @@ function build(data){
     const S=R+2;
     const line=(r,label,cell,note)=>{sh.set(r,0,{v:label,s:12});sh.merges.push("A"+r+":D"+r);sh.set(r,4,cell);if(note)sh.set(r,5,{v:note,s:15});};
     sh.set(S,0,{v:"月の集計",s:1});
-    const target=M.target!=null?M.target:(data.settings.mode==="fixed"?data.settings.target:cnt*data.settings.daily);
-    const cH=counted*24,diff=cH-target,legal=40*n/7;
-    const inMin=Math.max(0,Math.min(cH,legal)-Math.max(target,0));
-    const o60=Math.min(60,Math.max(0,cH-legal)),o60p=Math.max(0,cH-legal-60);
+    const target=M.target!=null?M.target:(data.settings.mode==="fixed"?data.settings.target:cnt*daily);
+    const cH=counted*24,lH=leaveH*24,allH=cH+lH,diff=allH-target,legal=40*n/7;
+    const over=Math.max(0,diff),outL=Math.max(0,cH-legal);
+    const inMin=Math.max(0,over-outL),o60=Math.min(60,outL),o60p=Math.max(0,cH-legal-60);
+    const E=k=>"E"+(S+k);
     line(S+1,"所定労働日数",{f:'COUNTIF(C5:C'+R+',"出勤日")',v:cnt,s:18},"区分が「出勤日」の日数");
-    line(S+2,"総労働時間（時間）",M.target!=null?{v:M.target,s:17}:{f:'IF('+SET+'$B$4="固定",'+SET+'$B$5,E'+(S+1)+'*'+SET+'$B$3)',v:target,s:6},
+    line(S+2,"総労働時間（時間）",M.target!=null?{v:M.target,s:17}:{f:'IF('+SET+'$B$4="固定",'+SET+'$B$5,'+E(1)+'*'+SET+'$B$3)',v:target,s:6},
       M.target!=null?"この期間だけアプリで手入力された値":"設定シートの決め方で計算");
-    line(S+3,"実働（休日労働を除く）",{f:'SUMIFS(I5:I'+R+',C5:C'+R+',"出勤日")*24',v:cH,s:6},"時間");
-    line(S+4,"過不足",{f:'E'+(S+3)+'-E'+(S+2),v:diff,s:19},"マイナスは不足");
-    line(S+5,"時間外",{f:'MAX(0,E'+(S+4)+')',v:Math.max(0,diff),s:6},"総労働時間を超えた時間");
-    line(S+6,"法定労働時間の総枠",{f:'40*'+n+'/7',v:legal,s:6},"週40時間 × 暦日数 ÷ 7");
-    line(S+7,"法定内残業",{f:'MAX(0,MIN(E'+(S+3)+',E'+(S+6)+')-MAX(E'+(S+2)+',0))',v:inMin,s:6});
-    line(S+8,"時間外（法定外・月60時間まで）",{f:'MIN(60,MAX(0,E'+(S+3)+'-E'+(S+6)+'))',v:o60,s:6});
-    line(S+9,"時間外（法定外・月60時間超）",{f:'MAX(0,E'+(S+3)+'-E'+(S+6)+'-60)',v:o60p,s:6});
-    line(S+10,"深夜労働",{f:'SUM(J5:J'+R+')*24',v:night*24,s:6},"22:00〜5:00");
-    line(S+11,"休日労働（割増）時間",{f:'SUMIFS(I5:I'+R+',C5:C'+R+',"休日",K5:K'+R+',"割増")*24',v:holH*24,s:6});
-    line(S+12,"休日労働（割増）日数",{f:'COUNTIFS(C5:C'+R+',"休日",K5:K'+R+',"割増")',v:holD,s:18});
-    line(S+13,"休日出勤の未処理（日）",{f:'COUNTIFS(C5:C'+R+',"休日",K5:K'+R+',"未処理")',v:pend,s:18},"アプリで振替か割増を選ぶと反映されます");
-    line(S+14,"出張日数",{f:'COUNTIF(D5:D'+R+',"出張")',v:trips,s:18});
-    line(S+15,"移動時間",{f:'SUM(H5:H'+R+')*24',v:move*24,s:6},"実働に含む");
-    const ref={name:M.label,rows:{days:"E"+(S+1),target:"E"+(S+2),counted:"E"+(S+3),diff:"E"+(S+4),over:"E"+(S+5),night:"E"+(S+10),hol:"E"+(S+11),trips:"E"+(S+14)},
-      vals:{days:cnt,target,counted:cH,diff,over:Math.max(0,diff),night:night*24,hol:holH*24,trips}};
+    line(S+3,"実働（休日労働を除く）",{f:'SUMIFS(I5:I'+R+',C5:C'+R+',"出勤日")*24',v:cH,s:6},"実際に働いた時間");
+    line(S+4,"有給休暇の時間",{f:'SUM(M5:M'+R+')*24',v:lH,s:6},"1日＝標準時間、半休＝その半分として計算");
+    line(S+5,"総労働時間に数える時間",{f:E(3)+'+'+E(4),v:allH,s:6},"実働＋有給休暇");
+    line(S+6,"過不足",{f:E(5)+'-'+E(2),v:diff,s:19},"マイナスは不足");
+    line(S+7,"時間外",{f:'MAX(0,'+E(6)+')',v:over,s:6},"総労働時間を超えた時間");
+    line(S+8,"法定労働時間の総枠",{f:'40*'+n+'/7',v:legal,s:6},"週40時間 × 期間の日数 ÷ 7");
+    line(S+9,"法定内残業",{f:'MAX(0,'+E(7)+'-MAX(0,'+E(3)+'-'+E(8)+'))',v:inMin,s:6},"時間外のうち法定総枠まで");
+    line(S+10,"時間外（法定外・月60時間まで）",{f:'MIN(60,MAX(0,'+E(3)+'-'+E(8)+'))',v:o60,s:6},"実働が法定総枠を超えた時間（有給は含めない）");
+    line(S+11,"時間外（法定外・月60時間超）",{f:'MAX(0,'+E(3)+'-'+E(8)+'-60)',v:o60p,s:6});
+    line(S+12,"深夜労働",{f:'SUM(J5:J'+R+')*24',v:night*24,s:6},"22:00〜5:00");
+    line(S+13,"休日労働（割増）時間",{f:'SUMIFS(I5:I'+R+',C5:C'+R+',"休日",K5:K'+R+',"割増")*24',v:holH*24,s:6});
+    line(S+14,"休日労働（割増）日数",{f:'COUNTIFS(C5:C'+R+',"休日",K5:K'+R+',"割増")',v:holD,s:18});
+    line(S+15,"休日出勤の未処理（日）",{f:'COUNTIFS(C5:C'+R+',"休日",K5:K'+R+',"未処理")',v:pend,s:18},"アプリで振替か割増を選ぶと反映されます");
+    line(S+16,"出張日数",{f:'COUNTIF(D5:D'+R+',"出張")',v:trips,s:18});
+    line(S+17,"移動時間",{f:'SUM(H5:H'+R+')*24',v:move*24,s:6},"実働に含む");
+    line(S+18,"有給休暇の取得日数",{f:'COUNTIF(L5:L'+R+',"有給")+0.5*(COUNTIF(L5:L'+R+',"午前半休")+COUNTIF(L5:L'+R+',"午後半休"))',v:leaveD,s:14},"半休は0.5日");
+    const ref={name:M.label,rows:{days:E(1),target:E(2),counted:E(3),leave:E(18),diff:E(6),over:E(7),night:E(12),hol:E(13),trips:E(16)},
+      vals:{days:cnt,target,counted:cH,leave:leaveD,diff,over,night:night*24,hol:holH*24,trips}};
     if(inc){
-      const Pr=S+17,B=SET+'$B$10';
+      const Pr=S+20,B=SET+'$B$10';
       sh.set(Pr,0,{v:"手当の試算",s:1});
       sh.set(Pr+1,0,{v:"区分",s:2});sh.merges.push("A"+(Pr+1)+":D"+(Pr+1));
       sh.set(Pr+1,4,{v:"時間",s:2});sh.set(Pr+1,5,{v:"倍率",s:2});sh.set(Pr+1,6,{v:"金額",s:2});
@@ -520,15 +532,15 @@ function build(data){
       const rd=v=>Math.round(v);
       const a1=rd(inMin*base*(1+P.rIn/100)),a2=rd(o60*base*(1+P.rOver/100)),a3=rd(o60p*base*(1+P.r60/100));
       const a4=flat?holD*P.holFlat:rd(holH*24*base*(1+P.rHol/100)),a5=rd(night*24*base*P.rNight/100);
-      prow(Pr+2,"法定内残業","E"+(S+7),inMin,"1+"+SET+"$B$12",1+P.rIn/100,"ROUND(E"+(Pr+2)+"*"+B+"*F"+(Pr+2)+",0)",a1);
-      prow(Pr+3,"時間外（法定外）","E"+(S+8),o60,"1+"+SET+"$B$13",1+P.rOver/100,"ROUND(E"+(Pr+3)+"*"+B+"*F"+(Pr+3)+",0)",a2);
-      prow(Pr+4,"時間外（月60時間超）","E"+(S+9),o60p,"1+"+SET+"$B$14",1+P.r60/100,"ROUND(E"+(Pr+4)+"*"+B+"*F"+(Pr+4)+",0)",a3);
-      prow(Pr+5,"休日出勤手当","E"+(S+11),holH*24,'IF('+SET+'$B$17="定額","定額",1+'+SET+'$B$16)',flat?"定額":1+P.rHol/100,
-        'IF('+SET+'$B$17="定額",E'+(S+12)+'*'+SET+'$B$18,ROUND(E'+(Pr+5)+'*'+B+'*(1+'+SET+'$B$16),0))',a4);
-      prow(Pr+6,"深夜割増","E"+(S+10),night*24,SET+"$B$15",P.rNight/100,"ROUND(E"+(Pr+6)+"*"+B+"*F"+(Pr+6)+",0)",a5);
+      prow(Pr+2,"法定内残業",E(9),inMin,"1+"+SET+"$B$12",1+P.rIn/100,"ROUND(E"+(Pr+2)+"*"+B+"*F"+(Pr+2)+",0)",a1);
+      prow(Pr+3,"時間外（法定外）",E(10),o60,"1+"+SET+"$B$13",1+P.rOver/100,"ROUND(E"+(Pr+3)+"*"+B+"*F"+(Pr+3)+",0)",a2);
+      prow(Pr+4,"時間外（月60時間超）",E(11),o60p,"1+"+SET+"$B$14",1+P.r60/100,"ROUND(E"+(Pr+4)+"*"+B+"*F"+(Pr+4)+",0)",a3);
+      prow(Pr+5,"休日出勤手当",E(13),holH*24,'IF('+SET+'$B$17="定額","定額",1+'+SET+'$B$16)',flat?"定額":1+P.rHol/100,
+        'IF('+SET+'$B$17="定額",'+E(14)+'*'+SET+'$B$18,ROUND(E'+(Pr+5)+'*'+B+'*(1+'+SET+'$B$16),0))',a4);
+      prow(Pr+6,"深夜割増",E(12),night*24,SET+"$B$15",P.rNight/100,"ROUND(E"+(Pr+6)+"*"+B+"*F"+(Pr+6)+",0)",a5);
       const a6=trips*(P.tripFlat||0);
       sh.set(Pr+7,0,{v:"出張手当（日数 × 定額）"});sh.merges.push("A"+(Pr+7)+":D"+(Pr+7));
-      sh.set(Pr+7,4,{f:"E"+(S+14),v:trips,s:18});sh.set(Pr+7,5,{v:"定額",s:14});
+      sh.set(Pr+7,4,{f:E(16),v:trips,s:18});sh.set(Pr+7,5,{v:"定額",s:14});
       sh.set(Pr+7,6,{f:"E"+(Pr+7)+"*"+SET+"$B$19",v:a6,s:7});
       sh.set(Pr+8,0,{v:"合計（試算）",s:12});sh.merges.push("A"+(Pr+8)+":D"+(Pr+8));
       sh.set(Pr+8,6,{f:"SUM(G"+(Pr+2)+":G"+(Pr+7)+")",v:a1+a2+a3+a4+a5+a6,s:16});
@@ -540,10 +552,10 @@ function build(data){
   });
 
   // 年間まとめ
-  const sum=newSheet("年間まとめ");sum.cols=[12,12,12,12,12,12,12,12,10,14];sum.freeze=4;
+  const sum=newSheet("年間まとめ");sum.cols=[14,12,12,12,10,12,12,12,12,10,14];sum.freeze=4;
   sum.set(1,0,{v:data.year+"年 勤怠まとめ",s:1});
   sum.set(2,0,{v:"各月のシートの集計を表示しています。時間の単位はすべて「時間」です。",s:15});
-  const cols=[["所定労働日数","days",18],["総労働時間","target",6],["実働","counted",6],["過不足","diff",6],["時間外","over",6],["深夜","night",6],["休日労働","hol",6],["出張日数","trips",18]];
+  const cols=[["所定労働日数","days",18],["総労働時間","target",6],["実働","counted",6],["有給（日）","leave",14],["過不足","diff",6],["時間外","over",6],["深夜","night",6],["休日労働","hol",6],["出張日数","trips",18]];
   if(inc)cols.push(["手当合計（試算）","pay",7]);
   sum.set(4,0,{v:"月",s:2});cols.forEach((c,i)=>sum.set(4,i+1,{v:c[0],s:2}));
   refs.forEach((rf,k)=>{const r=5+k;sum.set(r,0,{v:rf.name});
@@ -551,7 +563,7 @@ function build(data){
   const tr=5+refs.length;
   if(refs.length){
     sum.set(tr,0,{v:"合計",s:12});
-    cols.forEach((c,i)=>{const L=colL(i+1);sum.set(tr,i+1,{f:"SUM("+L+"5:"+L+(tr-1)+")",v:refs.reduce((a,rf)=>a+rf.vals[c[1]],0),s:c[2]===7?16:c[2]===18?18:19});});
+    cols.forEach((c,i)=>{const L=colL(i+1);sum.set(tr,i+1,{f:"SUM("+L+"5:"+L+(tr-1)+")",v:refs.reduce((a,rf)=>a+rf.vals[c[1]],0),s:c[2]===7?16:c[2]===18?18:c[2]===14?14:19});});
   }
 
   // 設定
@@ -694,6 +706,8 @@ const saveSettings=()=>persist("settings",S.settings);
 
 /* ---------- calendar ---------- */
 const mdOf=key=>S.months[monthOf(key)];
+function leaveMin(r,key){if(!r||!r.leave||isHoliday(key))return 0;const d=S.settings.daily*60;return r.leave==="full"?d:(r.leave==="am"||r.leave==="pm")?d/2:0;}
+const LEAVE_LABEL={full:"有給",am:"午前半休",pm:"午後半休"};
 const recOf=key=>{const m=mdOf(key);return m?m.days[key]:null;};
 function natHol(key){const [y,m,d]=parseKey(key);const wd=new Date(y,m-1,d).getDay();return wd===0||wd===6||JP_HOL.has(key);}
 // 予定上の休日（振替で出勤日になる前の状態）
@@ -761,7 +775,7 @@ function status(){
 function monthStats(pk,now){
   const ds=periodDays(pk);const n=ds.length;
   const todayK=dayKey(new Date(now));
-  const st={days:0,counted:0,holPrem:0,holPremDays:0,holPend:0,holPendDays:0,furiDays:0,night:0,move:0,tripDays:0,remainDays:0};
+  const st={days:0,counted:0,leave:0,leaveDays:0,holPrem:0,holPremDays:0,holPend:0,holPendDays:0,furiDays:0,night:0,move:0,tripDays:0,remainDays:0};
   for(const key of ds){
     const r=recOf(key);const hol=isHoliday(key);
     if(r&&r.in){
@@ -771,10 +785,12 @@ function monthStats(pk,now){
       if(r.trip)st.move+=moveMin(r,now);
     }
     if(r&&r.trip)st.tripDays++;
-    if(!hol&&(key>todayK||(key===todayK&&!(r&&r.in))))st.remainDays++;
+    const lm=leaveMin(r,key);if(lm){st.leave+=lm;st.leaveDays+=r.leave==="full"?1:0.5;}
+    if(!hol&&!(r&&r.leave==="full")&&(key>todayK||(key===todayK&&!(r&&r.in))))st.remainDays++;
   }
   st.target=monthTarget(pk)*60;
-  st.diff=st.counted-st.target;
+  st.countedAll=st.counted+st.leave;
+  st.diff=st.countedAll-st.target;
   st.over=Math.max(0,st.diff);
   st.legal=40*n/7*60;
   st.overLegal=Math.max(0,st.counted-st.legal);
@@ -811,6 +827,7 @@ let viewMonth=dayKey(new Date()).slice(0,7);
 function chips(key,now){
   const r=recOf(key);const md=mdOf(key);let h="";
   if(r&&r.trip)h+='<span class="chip trip">出張</span>';
+  if(r&&r.leave&&!isHoliday(key))h+='<span class="chip leave">'+LEAVE_LABEL[r.leave]+'</span>';
   if(r&&r.in&&plannedHoliday(key)){
     if(r.holWork==="furikae")h+='<span class="chip off">休出→振替'+(r.furiDate?" "+md2(r.furiDate):"")+'</span>';
     else if(r.holWork==="premium")h+='<span class="chip hol">休出・割増</span>';
@@ -848,7 +865,7 @@ function renderRecorder(){
   if(periodLoaded(mk)){
     const st=monthStats(mk,now);
     const b=$("bal");b.textContent=sdur(st.diff);b.className="val dot "+(st.diff>=0.5?"plus":st.diff<=-0.5?"minus":"");
-    const remain=st.target-st.counted;
+    const remain=st.target-st.countedAll;
     $("balSub").textContent=remain>0?(st.remainDays>0?"残り"+st.remainDays+"日、1日あたり"+dur(remain/st.remainDays):"残り"+dur(remain)):"時間外 "+dur(st.over);
   }
 }
@@ -901,7 +918,8 @@ function renderMonth(){
     ["深夜労働",dur(st.night),""],["休日労働（割増）",dur(st.holPrem)+"（"+st.holPremDays+"日）",""],
     ["休日出勤の未処理",st.holPendDays?st.holPendDays+"日（"+dur(st.holPend)+"）":"なし",st.holPendDays?"minus":""],
     ["振替済みの休日出勤",st.furiDays+"日",""],
-    ["出勤日数",st.days+"日",""],["出張（うち移動）",st.tripDays+"日（"+dur(st.move)+"）",""]
+    ["出勤日数",st.days+"日",""],["出張（うち移動）",st.tripDays+"日（"+dur(st.move)+"）",""],
+    ["有給休暇",st.leaveDays+"日（"+dur(st.leave)+"）",""],["総労働時間に数える時間",dur(st.countedAll),""]
   ];
   renderPay(st);
   $("totals").innerHTML=tot.map(t=>"<div><dt>"+t[0]+'</dt><dd class="dot '+t[2]+'">'+t[1]+"</dd></div>").join("");
@@ -911,7 +929,7 @@ function baseRate(){const p=S.settings.pay;const b=p.basis==="hourly"?p.hourly:(
 function payCalc(st){
   const p=S.settings.pay;const base=baseRate();const flat=p.holMode==="flat";const trip=p.tripFlat>0;
   if(!base&&!flat&&!trip)return null;
-  const inMin=Math.max(0,Math.min(st.counted,st.legal)-Math.max(st.target,0));
+  const inMin=Math.max(0,st.over-st.overLegal);
   const o=st.overLegal,o60=Math.min(o,3600),o60p=Math.max(0,o-3600);
   const rows=[
     ["法定内残業","総労働時間を超え、法定総枠までの時間",inMin,1+p.rIn/100],
@@ -962,7 +980,7 @@ function openEdit(key){
   const fo=md&&md.furiOf[key];
   $("editNote").hidden=!fo;if(fo)$("editNote").textContent="この日は"+md2(fo)+"の休日出勤に対する振替休日です。変更する場合は"+md2(fo)+"の記録から行ってください。";
   $("eDay").value=(md&&md.cal[key])||"";
-  $("eTrip").checked=!!r.trip;
+  $("eTrip").checked=!!r.trip;$("eLeave").value=r.leave||"";
   $("eIn").value=r.in?hm(r.in):"";$("eOut").value=r.out?hm(r.out):"";
   orig.b=r.in?String(Math.round(breakMin(r,now))):"";orig.m=r.in?String(Math.round(moveMin(r,now))):"";
   $("eBreak").value=orig.b;$("eMove").value=orig.m;
@@ -983,10 +1001,12 @@ async function unlinkFuri(src,date){
 async function saveEdit(){
   const key=editing;const mk=monthOf(key);await loadMonth(mk);
   const md=S.months[mk];const old=md.days[key]||{};const now=Date.now();
-  const vin=$("eIn").value,vout=$("eOut").value,vb=$("eBreak").value,vm=$("eMove").value,note=$("eNote").value.trim(),trip=$("eTrip").checked;
+  const vin=$("eIn").value,vout=$("eOut").value,vb=$("eBreak").value,vm=$("eMove").value,note=$("eNote").value.trim(),trip=$("eTrip").checked,leave=$("eLeave").value;
   const dayv=$("eDay").value;
   const err=t=>{$("eErr").textContent=t;return false;};
   if(!vin&&vout)return err("終業だけを記録することはできません。始業時刻を入力してください。");
+  if(leave&&plannedHoliday(key,$("eDay").value||null))return err("休日には有給休暇を登録できません。");
+  if(leave==="full"&&vin)return err("1日の有給休暇の日は始業・終業を空欄にしてください。出勤した場合は半休を選んでください。");
   const planned=plannedHoliday(key,dayv||null);
   let holWork=vin&&planned?$("eHol").value:"";let furiDate=holWork==="furikae"?$("eFuri").value:"";
   if(holWork==="furikae"){
@@ -1001,10 +1021,10 @@ async function saveEdit(){
   if(dayv)md.cal[key]=dayv;else delete md.cal[key];
   if(old.holWork==="furikae"&&old.furiDate&&old.furiDate!==furiDate)await unlinkFuri(key,old.furiDate);
   if(!vin){
-    if(note||trip)md.days[key]={note,trip};else delete md.days[key];
+    if(note||trip||leave){md.days[key]={note,trip};if(leave)md.days[key].leave=leave;}else delete md.days[key];
     if(S.settings.active===key){S.settings.active=null;saveSettings();}
   }else{
-    const r={in:toMs(key,vin),out:null,breaks:old.breaks||[],moves:old.moves||[],trip,note};
+    const r={in:toMs(key,vin),out:null,breaks:old.breaks||[],moves:old.moves||[],trip,note};if(leave)r.leave=leave;
     if(typeof old.breakMin==="number")r.breakMin=old.breakMin;
     if(typeof old.moveMin==="number")r.moveMin=old.moveMin;
     if(vout){let o=toMs(key,vout);if(o<=r.in)o+=86400000;r.out=o;}
@@ -1027,11 +1047,11 @@ async function saveEdit(){
 function buildCsv(){
   const pk=viewMonth;const now=Date.now();
   const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
-  const lines=[["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働の扱い","振替休日","メモ"].map(q).join(",")];
+  const lines=[["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働の扱い","振替休日","休暇","メモ"].map(q).join(",")];
   for(const key of periodDays(pk)){
     const [y,m,d]=parseKey(key);const md=mdOf(key)||{days:{},furiOf:{}};const r=md.days[key];
     const kind=md.furiOf[key]?"振替休日（"+md.furiOf[key]+"分）":plannedHoliday(key)?"休日":"出勤日";
-    const row=[key,WD[new Date(y,m-1,d).getDay()],kind,r&&r.trip?"出張":"","","","","","","","","",r&&r.note||""];
+    const row=[key,WD[new Date(y,m-1,d).getDay()],kind,r&&r.trip?"出張":"","","","","","","","","",(r&&r.leave&&!isHoliday(key))?LEAVE_LABEL[r.leave]:"",r&&r.note||""];
     if(r&&r.in){
       row[4]=hm(r.in);row[5]=r.out?hm(r.out):"";row[6]=dur(breakMin(r,now));row[7]=r.trip?dur(moveMin(r,now)):"";
       row[8]=dur(workMin(r,now));row[9]=dur(nightMin(r,now));
@@ -1041,7 +1061,7 @@ function buildCsv(){
   }
   const st=monthStats(pk,now);
   lines.push("");
-  [["総労働時間",dur(st.target)],["実働（休日労働を除く）",dur(st.counted)],["過不足",sdur(st.diff)],["時間外",dur(st.over)],["うち法定総枠の超過",dur(st.overLegal)],
+  [["総労働時間",dur(st.target)],["実働（休日労働を除く）",dur(st.counted)],["有給休暇",st.leaveDays+"日（"+dur(st.leave)+"）"],["総労働時間に数える時間",dur(st.countedAll)],["過不足",sdur(st.diff)],["時間外",dur(st.over)],["うち法定総枠の超過",dur(st.overLegal)],
    ["深夜労働",dur(st.night)],["休日労働（割増）",dur(st.holPrem)],["休日出勤の未処理",dur(st.holPend)],["うち移動時間",dur(st.move)]]
     .forEach(p=>lines.push(p.map(q).join(",")));
   const pc=payCalc(st);
@@ -1206,13 +1226,13 @@ async function xlsxData(year,includePay){
   const now=Date.now();const months=[];
   for(let m=1;m<=12;m++){
     const pk=year+"-"+pad(m);const ds=periodDays(pk);
-    const has=ds.some(k=>{const md=mdOf(k);const r=md&&md.days[k];return (r&&(r.in||r.trip))||(md&&(md.cal[k]||md.furiOf[k]));})||targetOverride(pk)!=null;
+    const has=ds.some(k=>{const md=mdOf(k);const r=md&&md.days[k];return (r&&(r.in||r.trip||r.leave))||(md&&(md.cal[k]||md.furiOf[k]));})||targetOverride(pk)!=null;
     if(!has)continue;
     const rows=[];
     for(const key of ds){
       const [yy,mm,d]=parseKey(key);const md=mdOf(key);const r=md.days[key];const dt=new Date(yy,mm-1,d);const mid=dt.getTime();
       const kind=md.furiOf[key]?"振替休日":isHoliday(key)?"休日":"出勤日";
-      const row={serial:(Date.UTC(yy,mm-1,d)-Date.UTC(1899,11,30))/86400000,wd:WD[dt.getDay()]+(JP_HOL.has(key)?"・祝":""),kind,trip:!!(r&&r.trip),note:(r&&r.note)||"",inT:null,outT:null,brk:0,move:0,hol:""};
+      const row={serial:(Date.UTC(yy,mm-1,d)-Date.UTC(1899,11,30))/86400000,wd:WD[dt.getDay()]+(JP_HOL.has(key)?"・祝":""),kind,trip:!!(r&&r.trip),note:(r&&r.note)||"",inT:null,outT:null,brk:0,move:0,hol:"",leave:(r&&r.leave&&!isHoliday(key))?LEAVE_LABEL[r.leave]:""};
       if(r&&r.in){
         const t=ms=>Math.round((ms-mid)/60000)/1440;
         row.inT=t(r.in);row.outT=r.out?t(r.out):null;
