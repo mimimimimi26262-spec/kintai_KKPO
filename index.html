@@ -1,0 +1,1295 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#1D3250" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10161C" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="勤怠カード">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>勤怠カード</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E6ECEF; --card:#FAFCFD; --ink:#1D3250; --muted:#5D6F80; --rule:#C3CED6; --rule-soft:#DDE4E9;
+  --red:#C0363A; --blue:#2B4F88; --green:#2E8A58; --trip:#0F7C86; --sat:#EEF3FA; --sun:#FBF0F0; --today:#FFF7DA;
+  --btn:#1D3250; --btn-fg:#FAFCFD; --focus:#E0A100;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#10161C; --card:#18212A; --ink:#DCE5EE; --muted:#8D9CAB; --rule:#2F3D4A; --rule-soft:#243039;
+    --red:#EE6B64; --blue:#8DB0EA; --green:#5CC88C; --trip:#4FC3CC; --sat:#1B2735; --sun:#2A1D20; --today:#2E2A17;
+    --btn:#DCE5EE; --btn-fg:#10161C; --focus:#F2C14E;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#10161C; --card:#18212A; --ink:#DCE5EE; --muted:#8D9CAB; --rule:#2F3D4A; --rule-soft:#243039;
+  --red:#EE6B64; --blue:#8DB0EA; --green:#5CC88C; --trip:#4FC3CC; --sat:#1B2735; --sun:#2A1D20; --today:#2E2A17;
+  --btn:#DCE5EE; --btn-fg:#10161C; --focus:#F2C14E;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.dot{font-family:"DotGothic16","Osaka-Mono","MS Gothic",ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.wrap{max-width:920px;margin:0 auto;padding:24px 16px 48px}
+header.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:18px}
+header.top h1{font-size:1.15rem;font-weight:700;margin:0}
+.sync{font-size:.8rem;color:var(--muted)}
+.sync.err{color:var(--red)}
+
+.recorder{background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:22px}
+.rtop{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.recorder .date{color:var(--muted);font-size:.95rem}
+.clock{font-size:clamp(3.4rem,14vw,6.4rem);line-height:1;margin:6px 0 14px}
+.clock .sec{font-size:.42em;color:var(--muted);margin-left:.15em}
+.balance{text-align:right;min-width:150px}
+.balance .lbl{font-size:.8rem;color:var(--muted)}
+.balance .val{font-size:2rem;line-height:1.1}
+.balance .val.plus{color:var(--green)} .balance .val.minus{color:var(--red)}
+.balance .sub{font-size:.8rem;color:var(--muted)}
+@media (max-width:560px){.balance{text-align:left}}
+.status{display:inline-flex;align-items:center;gap:8px;font-weight:500;font-size:.95rem}
+.lamp{width:10px;height:10px;border-radius:50%;background:var(--rule)}
+.status[data-s="work"] .lamp{background:#2E9E62;box-shadow:0 0 0 4px color-mix(in srgb,#2E9E62 22%,transparent)}
+.status[data-s="break"] .lamp{background:#E0A100;box-shadow:0 0 0 4px color-mix(in srgb,#E0A100 22%,transparent)}
+.status[data-s="move"] .lamp{background:var(--trip);box-shadow:0 0 0 4px color-mix(in srgb,var(--trip) 22%,transparent)}
+.chip{font-size:.75rem;font-weight:500;border-radius:3px;padding:1px 7px;border:1px solid currentColor;white-space:nowrap}
+.chip.trip{color:var(--trip)} .chip.hol{color:var(--red)} .chip.off{color:var(--muted)} .chip.warn{color:#fff;background:var(--red);border-color:var(--red)} .chip.night{color:var(--blue)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.actions button{font:inherit;font-weight:700;font-size:1.05rem;padding:14px 22px;border-radius:4px;cursor:pointer;min-width:130px;
+  border:2px solid var(--btn);background:var(--btn);color:var(--btn-fg)}
+.actions button.sub{background:transparent;color:var(--ink)}
+.actions button.trip{background:transparent;color:var(--trip);border-color:var(--trip)}
+.actions button:active{transform:translateY(1px)}
+.done{color:var(--muted);margin:0;font-size:.95rem}
+.todayline{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin-top:22px;border-top:1px dashed var(--rule);padding-top:14px;gap:8px}
+.todayline dt{font-size:.78rem;color:var(--muted)}
+.todayline dd{margin:0;font-size:1.3rem}
+@media (max-width:560px){.todayline{grid-template-columns:repeat(3,1fr)}.actions button{flex:1 1 40%}}
+
+section.month{margin-top:28px;background:var(--card);border:1px solid var(--rule);border-radius:6px}
+.mhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.mhead h2{margin:0;font-size:1.1rem;font-weight:700}
+.nav{display:flex;gap:6px}
+.nav button,.tool{font:inherit;font-size:.9rem;background:transparent;color:var(--ink);border:1px solid var(--rule);border-radius:4px;padding:6px 12px;cursor:pointer}
+.target{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--rule);font-size:.9rem;flex-wrap:wrap}
+.target input{width:90px}
+.target .note{color:var(--muted);font-size:.8rem}
+.totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:12px 16px;gap:12px 8px;border-bottom:1px solid var(--rule)}
+.totals dt{font-size:.78rem;color:var(--muted)}
+.totals dd{margin:0;font-size:1.2rem}
+.totals dd.plus{color:var(--green)} .totals dd.minus{color:var(--red)}
+@media (max-width:560px){.totals{grid-template-columns:repeat(2,1fr)}}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:820px;font-size:.92rem}
+th{font-weight:500;font-size:.78rem;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid var(--rule-soft);white-space:nowrap}
+td.num,th.num{text-align:right}
+td.memo{white-space:normal;max-width:200px;color:var(--muted);font-size:.85rem}
+td.kind{display:flex;gap:4px}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+tr.hday td{background:var(--sun)} tr.sat td{background:var(--sat)}
+tr.today td{background:var(--today)}
+tr.sat .wd{color:var(--blue)} tr.hday .wd{color:var(--red)}
+.stamp{font-size:1.02rem}
+.live{color:#2E9E62;font-size:.82rem;font-weight:500}
+.dim{color:var(--rule)}
+.mfoot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;padding:12px 16px;font-size:.82rem;color:var(--muted)}
+
+details.settings{margin-top:20px;background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:12px 16px}
+details.settings summary{cursor:pointer;font-weight:500}
+.srow{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px;align-items:flex-end}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted)}
+label.c{display:flex;align-items:center;gap:8px;font-size:.9rem}
+input,textarea,select{font:inherit;font-size:1rem;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:8px 10px}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--ink)}
+.hint{font-size:.8rem;color:var(--muted);margin:10px 0 0}
+.rules{font-size:.85rem;color:var(--muted);margin:12px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 14px}
+.rules dt{color:var(--ink)} .rules dd{margin:0}
+section.pay{margin-top:20px;background:var(--card);border:1px solid var(--rule);border-radius:6px}
+section.pay h2{margin:0;font-size:1.1rem;font-weight:700}
+.phead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--rule)}
+.phead .base{font-size:.85rem;color:var(--muted)}
+table.paytbl{min-width:520px}
+table.paytbl tfoot td{font-weight:700;border-top:1px solid var(--rule);border-bottom:none;font-size:1rem}
+.paytotal{font-size:1.4rem}
+.pempty{padding:16px;color:var(--muted);font-size:.9rem;margin:0}
+fieldset.wage{border:1px solid var(--rule);border-radius:4px;padding:12px;margin:16px 0 0;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+fieldset.wage legend{font-size:.85rem;color:var(--ink);padding:0 4px;font-weight:500}
+fieldset.wage input{width:120px}
+fieldset.hw{grid-column:1/-1;border:1px solid var(--rule);border-radius:4px;padding:10px 12px;margin:0;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+fieldset.hw legend{font-size:.82rem;color:var(--muted);padding:0 4px}
+.dnote{font-size:.85rem;color:var(--muted);margin:-6px 0 12px}
+
+dialog{border:1px solid var(--rule);border-radius:8px;background:var(--card);color:var(--ink);padding:0;width:min(460px,calc(100% - 24px))}
+dialog::backdrop{background:rgba(10,18,28,.45)}
+dialog form{padding:20px}
+dialog h3{margin:0 0 14px;font-size:1.05rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid2 .full{grid-column:1/-1}
+.dbtns{display:flex;gap:8px;justify-content:space-between;margin-top:18px;flex-wrap:wrap}
+.dbtns .right{display:flex;gap:8px}
+.primary{font:inherit;font-weight:700;background:var(--btn);color:var(--btn-fg);border:2px solid var(--btn);border-radius:4px;padding:8px 18px;cursor:pointer}
+.danger-fill{background:var(--red);border-color:var(--red)}
+.danger{font:inherit;background:transparent;color:var(--red);border:1px solid transparent;padding:8px 6px;cursor:pointer}
+.err{color:var(--red);font-size:.85rem;margin:10px 0 0;min-height:1em}
+[hidden]{display:none !important}
+#lock{position:fixed;inset:0;z-index:50;background:var(--paper);display:flex;align-items:center;justify-content:center;padding:24px;padding-top:calc(24px + env(safe-area-inset-top,0px))}
+#lock .box{width:min(340px,100%);background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:28px 22px;text-align:center}
+#lock h2{margin:0 0 4px;font-size:1.2rem}
+#lock p{margin:0 0 18px;color:var(--muted);font-size:.9rem}
+#lock input{width:100%;text-align:center;font-size:1.6rem;letter-spacing:.3em;padding:10px}
+#lock .primary{width:100%;margin-top:14px;padding:12px}
+#lock .forgot{margin-top:16px;background:none;border:none;color:var(--muted);font:inherit;font-size:.85rem;text-decoration:underline;cursor:pointer}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.loading{opacity:.5;pointer-events:none}
+@media (prefers-reduced-motion:no-preference){.flash{animation:flash .9s ease-out}
+  @keyframes flash{0%{background:color-mix(in srgb,var(--focus) 35%,var(--card))}100%{background:var(--card)}}}
+</style>
+</head>
+<body>
+<div id="lock" hidden>
+  <form class="box" id="lockForm">
+    <h2>勤怠カード</h2>
+    <p>パスコードを入力してください</p>
+    <input type="password" id="lockPass" inputmode="numeric" autocomplete="off" aria-label="パスコード">
+    <p class="err" id="lockErr" style="margin:8px 0 0"></p>
+    <button type="submit" class="primary" id="lockBtn">ロックを解除</button>
+    <button type="button" class="forgot" id="lockForgot">パスコードを忘れた場合</button>
+  </form>
+</div>
+<div class="wrap loading" id="app">
+  <header class="top">
+    <h1>勤怠カード</h1>
+    <span class="sync" id="sync">読み込み中…</span>
+  </header>
+
+  <section class="recorder" id="recorder" aria-live="polite">
+    <div class="rtop">
+      <div>
+        <div class="date" id="date"></div>
+        <div class="clock dot" id="clock" aria-label="現在時刻">--:--</div>
+        <div class="status" id="status" data-s="off"><span class="lamp"></span><span id="statusText">勤務外</span><span id="statusChips" style="display:inline-flex;gap:4px"></span></div>
+      </div>
+      <div class="balance">
+        <div class="lbl">今月の過不足</div>
+        <div class="val dot" id="bal">±0:00</div>
+        <div class="sub" id="balSub"></div>
+      </div>
+    </div>
+    <div class="actions" id="actions"></div>
+    <dl class="todayline" id="todayline"></dl>
+  </section>
+
+  <section class="month" aria-labelledby="mtitle">
+    <div class="mhead">
+      <h2 id="mtitle"></h2>
+      <div class="nav">
+        <button id="prev" aria-label="前の月">‹ 前月</button>
+        <button id="thisMonth">今月</button>
+        <button id="next" aria-label="次の月">翌月 ›</button>
+      </div>
+    </div>
+    <div class="target">
+      <label for="mTarget">この月の総労働時間</label>
+      <input type="number" id="mTarget" min="0" max="400" step="0.5" class="dot">
+      <span>時間</span>
+      <span class="note" id="targetNote"></span>
+    </div>
+    <dl class="totals" id="totals"></dl>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>日</th><th>曜</th><th>区分</th><th>始業</th><th>終業</th><th class="num">休憩</th><th class="num">移動</th><th class="num">実働</th><th class="num">深夜</th><th>メモ</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="mfoot">
+      <span>行をクリックすると打刻の修正、出張・休日出勤の扱いを設定できます。</span>
+      <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="tool" id="xlsx" hidden>Excelで保存</button><button class="tool" id="csv" hidden>CSVで保存</button></span>
+    </div>
+  </section>
+
+  <section class="pay" aria-labelledby="ptitle">
+    <div class="phead"><h2 id="ptitle">手当の試算</h2><span class="base" id="payBase"></span></div>
+    <div id="payBody"></div>
+  </section>
+
+  <details class="settings">
+    <summary>勤務設定</summary>
+    <dl class="rules">
+      <dt>制度</dt><dd>フレックスタイム制（清算期間1か月、コアタイムなし）</dd>
+      <dt>標準勤務</dt><dd>9:00〜18:00（休憩1時間、8時間）</dd>
+      <dt>フレキシブルタイム</dt><dd>5:00〜22:00</dd>
+      <dt>深夜労働</dt><dd>22:00〜5:00の勤務を自動で集計</dd>
+      <dt>休日</dt><dd>土・日・祝日。休日に働いた日は振替休日か割増賃金（1日8,000円）を選択</dd>
+      <dt>時間外</dt><dd>月の実働が総労働時間を超えた分</dd>
+    </dl>
+    <div class="srow">
+      <label class="f">総労働時間の決め方
+        <select id="setMode"><option value="auto">所定労働日数 × 1日の標準時間</option><option value="fixed">毎月固定の時間数</option></select>
+      </label>
+      <label class="f" id="wDaily">1日の標準時間<input type="number" id="setDaily" min="0" max="24" step="0.25" style="width:110px"></label>
+      <label class="f" id="wTarget">毎月の総労働時間<input type="number" id="setTarget" min="0" max="400" step="0.5" style="width:120px"></label>
+    </div>
+    <fieldset class="wage">
+      <legend>基礎時給</legend>
+      <label class="f">決め方
+        <select id="pBasis"><option value="monthly">月給から計算</option><option value="hourly">時給を直接入力</option></select>
+      </label>
+      <label class="f" id="wSalary">月給（割増の基礎となる額・円）<input type="number" id="pSalary" min="0" step="1000"></label>
+      <label class="f" id="wAvg">月平均所定労働時間<input type="number" id="pAvg" min="1" max="300" step="0.1"></label>
+      <label class="f" id="wHourly">時給（円）<input type="number" id="pHourly" min="0" step="1"></label>
+    </fieldset>
+    <fieldset class="wage">
+      <legend>割増率（%）</legend>
+      <label class="f">法定内残業<input type="number" id="rIn" min="0" max="100" step="1"></label>
+      <label class="f">時間外（法定外）<input type="number" id="rOver" min="25" max="100" step="1"></label>
+      <label class="f">時間外 月60時間超<input type="number" id="r60" min="50" max="150" step="1"></label>
+      <label class="f">深夜<input type="number" id="rNight" min="25" max="100" step="1"></label>
+      <label class="f" id="wRHol">休日労働<input type="number" id="rHol" min="35" max="100" step="1"></label>
+    </fieldset>
+    <fieldset class="wage">
+      <legend>休日出勤の手当</legend>
+      <label class="f">方式
+        <select id="pHolMode"><option value="flat">1日あたり定額</option><option value="rate">時間 × 割増率で計算</option></select>
+      </label>
+      <label class="f" id="wHolFlat">1日あたりの額（円）<input type="number" id="pHolFlat" min="0" step="500"></label>
+    </fieldset>
+    <p class="hint">月給には基本給のほか、割増賃金の基礎に含める手当（役職手当など）を足した額を入れてください。家族手当・通勤手当・住宅手当などは法律上除外できます。月平均所定労働時間は「(365日 − 年間休日数) × 8時間 ÷ 12」で求められます（年間休日120日なら163.3時間）。割増率の初期値は法定の最低基準です。</p>
+    <div class="srow"><button class="primary" id="saveSettings">設定を保存</button></div>
+    <fieldset class="wage" id="lockBox" hidden>
+      <legend>パスコードロック</legend>
+      <span id="lockState" style="font-size:.9rem"></span>
+      <button type="button" class="tool" id="lockSet">パスコードを設定</button>
+      <button type="button" class="tool" id="lockChange" hidden>パスコードを変更</button>
+      <button type="button" class="tool" id="lockOff" hidden>ロックを解除</button>
+    </fieldset>
+    <p class="hint" id="lockHint" hidden>パスコードを設定すると、アプリを開くたびに入力が必要になり、記録と給与の設定はパスコードから作った鍵で暗号化して保存されます。アプリを離れて3分たつと自動でロックされます。パスコードを忘れると記録は取り出せなくなるので、バックアップも合わせて保存しておいてください。</p>
+    <fieldset class="wage" id="backupBox">
+      <legend>バックアップ・データ移行</legend>
+      <button type="button" class="tool" id="bkExport">バックアップを書き出す</button>
+      <button type="button" class="tool" id="bkImport">バックアップから読み込む</button>
+      <input type="file" id="bkFile" accept="application/json,.json" hidden>
+      <span class="hint" id="bkMsg" style="margin:0"></span>
+    </fieldset>
+    <p class="hint">記録はこの端末の中だけに保存されます。機種変更やブラウザのデータ削除に備えて、月に一度くらいバックアップを書き出しておくと安心です。Claude版の勤怠カードから書き出したファイルも読み込めます。</p>
+    <p class="hint">祝日は2026〜2027年分を登録済みです。年末年始などの会社休業日は、表の行から「休日」に切り替えると所定労働日数からも外れます。</p>
+  </details>
+</div>
+
+<dialog id="ask">
+  <form method="dialog" id="askForm">
+    <h3 id="askTitle"></h3>
+    <p class="dnote" id="askText" style="margin:0 0 12px"></p>
+    <div class="grid2" id="askFields"></div>
+    <p class="err" id="askErr"></p>
+    <div class="dbtns"><span></span>
+      <div class="right"><button type="button" class="tool" id="askCancel">キャンセル</button><button type="submit" class="primary" id="askOk">OK</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="edit">
+  <form method="dialog" id="editForm">
+    <h3 id="editTitle"></h3>
+    <p class="dnote" id="editNote" hidden></p>
+    <div class="grid2">
+      <label class="f">日の区分
+        <select id="eDay"><option value="">自動（土日祝は休日）</option><option value="work">出勤日</option><option value="off">休日（会社休業日など）</option></select>
+      </label>
+      <label class="c" style="align-self:end;padding-bottom:8px"><input type="checkbox" id="eTrip">出張</label>
+      <label class="f">始業<input type="time" id="eIn"></label>
+      <label class="f">終業<input type="time" id="eOut"></label>
+      <label class="f">休憩（分）<input type="number" id="eBreak" min="0" step="5"></label>
+      <label class="f" id="eMoveWrap">うち移動（分）<input type="number" id="eMove" min="0" step="5"></label>
+      <fieldset class="hw" id="eHolWrap">
+        <legend>休日労働の扱い</legend>
+        <label class="f">処理
+          <select id="eHol"><option value="">未選択</option><option value="premium">割増賃金</option><option value="furikae">振替休日を取る</option></select>
+        </label>
+        <label class="f" id="eFuriWrap">振替休日<input type="date" id="eFuri"></label>
+      </fieldset>
+      <label class="f full">メモ<input type="text" id="eNote" maxlength="100" placeholder="例：大阪出張、障害対応"></label>
+    </div>
+    <p class="err" id="eErr"></p>
+    <div class="dbtns">
+      <button type="button" class="danger" id="eDelete">打刻を削除</button>
+      <div class="right">
+        <button type="button" class="tool" id="eCancel">キャンセル</button>
+        <button type="submit" class="primary">保存</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+<script>
+window.KintaiXL=(function(){
+"use strict";
+const enc=new TextEncoder();
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zip(files){
+  const parts=[],central=[];let off=0;
+  for(const f of files){
+    const nm=enc.encode(f.name),d=enc.encode(f.data),crc=crc32(d);
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);
+    h.setUint16(10,0,true);h.setUint16(12,0x21,true);h.setUint32(14,crc,true);h.setUint32(18,d.length,true);
+    h.setUint32(22,d.length,true);h.setUint16(26,nm.length,true);h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nm,d);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);
+    c.setUint16(10,0,true);c.setUint16(12,0,true);c.setUint16(14,0x21,true);c.setUint32(16,crc,true);
+    c.setUint32(20,d.length,true);c.setUint32(24,d.length,true);c.setUint16(28,nm.length,true);
+    c.setUint16(30,0,true);c.setUint16(32,0,true);c.setUint16(34,0,true);c.setUint16(36,0,true);
+    c.setUint32(38,0,true);c.setUint32(42,off,true);
+    central.push(new Uint8Array(c.buffer),nm);
+    off+=30+nm.length+d.length;
+  }
+  const cs=central.reduce((a,b)=>a+b.length,0);
+  const e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);
+  e.setUint32(12,cs,true);e.setUint32(16,off,true);
+  const all=[...parts,...central,new Uint8Array(e.buffer)];
+  const out=new Uint8Array(all.reduce((a,b)=>a+b.length,0));let p=0;
+  for(const a of all){out.set(a,p);p+=a.length;}
+  return out;
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const colL=n=>{let s="";n++;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;};
+const num=v=>Number.isFinite(v)?String(Math.round(v*1e10)/1e10):"0";
+
+function newSheet(name){return {name,rows:{},cols:[],merges:[],freeze:0,set(r,c,cell){(this.rows[r]||(this.rows[r]={}))[c]=cell;}};}
+function cellXml(ref,c){
+  if(!c)return "";
+  const s=c.s!=null?' s="'+c.s+'"':"";
+  if(c.f!=null){
+    if(typeof c.v==="string")return '<c r="'+ref+'"'+s+' t="str"><f>'+esc(c.f)+'</f><v>'+esc(c.v)+'</v></c>';
+    if(typeof c.v==="number")return '<c r="'+ref+'"'+s+'><f>'+esc(c.f)+'</f><v>'+num(c.v)+'</v></c>';
+    return '<c r="'+ref+'"'+s+'><f>'+esc(c.f)+'</f></c>';
+  }
+  if(typeof c.v==="number")return '<c r="'+ref+'"'+s+'><v>'+num(c.v)+'</v></c>';
+  if(c.v==null||c.v==="")return s?'<c r="'+ref+'"'+s+'/>':"";
+  return '<c r="'+ref+'"'+s+' t="inlineStr"><is><t xml:space="preserve">'+esc(c.v)+'</t></is></c>';
+}
+function sheetXml(sh,selected){
+  const rows=Object.keys(sh.rows).map(Number).sort((a,b)=>a-b);
+  let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">';
+  x+='<sheetViews><sheetView workbookViewId="0"'+(selected?' tabSelected="1"':'')+'>';
+  if(sh.freeze)x+='<pane ySplit="'+sh.freeze+'" topLeftCell="A'+(sh.freeze+1)+'" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft"/>';
+  x+='</sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/>';
+  if(sh.cols.length)x+='<cols>'+sh.cols.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join("")+'</cols>';
+  x+='<sheetData>';
+  rows.forEach(r=>{const cs=sh.rows[r];const ks=Object.keys(cs).map(Number).sort((a,b)=>a-b);
+    x+='<row r="'+r+'">'+ks.map(c=>cellXml(colL(c)+r,cs[c])).join("")+'</row>';});
+  x+='</sheetData>';
+  if(sh.merges.length)x+='<mergeCells count="'+sh.merges.length+'">'+sh.merges.map(m=>'<mergeCell ref="'+m+'"/>').join("")+'</mergeCells>';
+  x+='<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/></worksheet>';
+  return x;
+}
+const STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+'<numFmts count="8"><numFmt numFmtId="171" formatCode="[h]:mm;;"/><numFmt numFmtId="164" formatCode="[h]:mm"/><numFmt numFmtId="165" formatCode="m/d"/><numFmt numFmtId="166" formatCode="0.00;[Red]-0.00"/><numFmt numFmtId="167" formatCode="&quot;¥&quot;#,##0"/><numFmt numFmtId="168" formatCode="0%"/><numFmt numFmtId="169" formatCode="0.00"/><numFmt numFmtId="170" formatCode="&quot;¥&quot;#,##0.00"/></numFmts>'+
+'<fonts count="6">'+
+'<font><sz val="10"/><color rgb="FF000000"/><name val="Arial"/><family val="2"/></font>'+
+'<font><b/><sz val="14"/><color rgb="FF1D3250"/><name val="Arial"/><family val="2"/></font>'+
+'<font><b/><sz val="10"/><color rgb="FF000000"/><name val="Arial"/><family val="2"/></font>'+
+'<font><sz val="10"/><color rgb="FF0000FF"/><name val="Arial"/><family val="2"/></font>'+
+'<font><sz val="10"/><color rgb="FFC0363A"/><name val="Arial"/><family val="2"/></font>'+
+'<font><sz val="9"/><color rgb="FF5D6F80"/><name val="Arial"/><family val="2"/></font></fonts>'+
+'<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'+
+'<fill><patternFill patternType="solid"><fgColor rgb="FFDDE4E9"/><bgColor indexed="64"/></patternFill></fill>'+
+'<fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/><bgColor indexed="64"/></patternFill></fill></fills>'+
+'<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="thin"><color rgb="FF8D9CAB"/></bottom><diagonal/></border></borders>'+
+'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+'<cellXfs count="24">'+
+'<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+                                                    // 0 標準
+'<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+                                      // 1 タイトル
+'<xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'+ // 2 見出し
+'<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+                            // 3 日付
+'<xf numFmtId="164" fontId="3" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'+             // 4 時刻（記録・青）
+'<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+                            // 5 時間（計算）
+'<xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+                            // 6 時間数（計算）
+'<xf numFmtId="167" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+                            // 7 円（計算）
+'<xf numFmtId="168" fontId="3" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>'+ // 8 ％入力
+'<xf numFmtId="169" fontId="3" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>'+ // 9 数値入力
+'<xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'+                        // 10 文字入力
+'<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+                                      // 11 赤字
+'<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+                                      // 12 太字
+'<xf numFmtId="167" fontId="3" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>'+ // 13 円入力
+'<xf numFmtId="169" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="right"/></xf>'+ // 14 倍率
+'<xf numFmtId="0" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+                                      // 15 注記
+'<xf numFmtId="167" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'+             // 16 円（太字）
+'<xf numFmtId="166" fontId="3" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'+             // 17 時間数（手入力・青）
+'<xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+                              // 18 整数
+'<xf numFmtId="166" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'+             // 19 時間数（太字）
+'<xf numFmtId="170" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+                            // 20 円（小数）
+'<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+                                      // 21 文字（記録・青）
+'<xf numFmtId="165" fontId="4" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'+             // 22 日付（赤）
+'<xf numFmtId="171" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+ // 23 深夜（0は非表示）
+'</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+const SET="'設定'!";
+function build(data){
+  const P=data.settings.pay,inc=!!data.includePay;
+  const base=P.basis==="hourly"?(P.hourly||0):((P.avg>0)?(P.salary||0)/P.avg:0);
+  const flat=P.holMode==="flat";
+  const refs=[];
+  const monthSheets=data.months.map(M=>{
+    const sh=newSheet(M.label);sh.cols=[7,7,10,6,8,8,8,8,8,8,10,30];sh.freeze=4;
+    sh.set(1,0,{v:M.label+" 勤怠表",s:1});
+    sh.set(2,0,{v:"青字は記録、黒字は計算式です。時刻を直すと実働・深夜・集計・手当が再計算されます。深夜は休憩の位置を考慮せずに計算します。",s:15});
+    ["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働","メモ"].forEach((h,i)=>sh.set(4,i,{v:h,s:2}));
+    const n=M.rows.length,R=4+n;
+    let cnt=0,counted=0,night=0,holH=0,holD=0,pend=0,trips=0,move=0;
+    M.rows.forEach((d,i)=>{
+      const r=5+i,hol=d.kind!=="出勤日";
+      sh.set(r,0,{v:d.serial,s:hol?22:3});sh.set(r,1,{v:d.wd,s:hol?11:0});sh.set(r,2,{v:d.kind,s:hol?11:0});
+      if(d.trip)sh.set(r,3,{v:"出張",s:21});
+      if(d.inT!=null){
+        sh.set(r,4,{v:d.inT,s:4});if(d.outT!=null)sh.set(r,5,{v:d.outT,s:4});
+        sh.set(r,6,{v:d.brk,s:4});if(d.trip)sh.set(r,7,{v:d.move,s:4});
+      }
+      let iv="",jv="";
+      if(d.inT!=null&&d.outT!=null){
+        iv=d.outT-d.inT-d.brk;
+        jv=Math.max(0,Math.min(5/24,d.outT)-d.inT)+Math.max(0,Math.min(29/24,d.outT)-Math.max(22/24,d.inT));
+      }
+      sh.set(r,8,{f:'IF(OR(E'+r+'="",F'+r+'=""),"",F'+r+'-E'+r+'-G'+r+')',v:iv,s:5});
+      sh.set(r,9,{f:'IF(OR(E'+r+'="",F'+r+'=""),"",MAX(0,MIN(5/24,F'+r+')-E'+r+')+MAX(0,MIN(29/24,F'+r+')-MAX(22/24,E'+r+')))',v:jv,s:23});
+      if(d.hol)sh.set(r,10,{v:d.hol,s:d.hol==="未処理"?11:21});
+      if(d.note)sh.set(r,11,{v:d.note,s:21});
+      if(d.kind==="出勤日"){cnt++;if(iv!=="")counted+=iv;}
+      if(jv!=="")night+=jv;
+      if(d.kind==="休日"&&d.hol==="割増"){holD++;if(iv!=="")holH+=iv;}
+      if(d.kind==="休日"&&d.hol==="未処理")pend++;
+      if(d.trip)trips++;
+      if(d.inT!=null&&d.trip)move+=d.move||0;
+    });
+    const S=R+2;
+    const line=(r,label,cell,note)=>{sh.set(r,0,{v:label,s:12});sh.merges.push("A"+r+":D"+r);sh.set(r,4,cell);if(note)sh.set(r,5,{v:note,s:15});};
+    sh.set(S,0,{v:"月の集計",s:1});
+    const target=M.target!=null?M.target:(data.settings.mode==="fixed"?data.settings.target:cnt*data.settings.daily);
+    const cH=counted*24,diff=cH-target,legal=40*n/7;
+    const inMin=Math.max(0,Math.min(cH,legal)-Math.max(target,0));
+    const o60=Math.min(60,Math.max(0,cH-legal)),o60p=Math.max(0,cH-legal-60);
+    line(S+1,"所定労働日数",{f:'COUNTIF(C5:C'+R+',"出勤日")',v:cnt,s:18},"区分が「出勤日」の日数");
+    line(S+2,"総労働時間（時間）",M.target!=null?{v:M.target,s:17}:{f:'IF('+SET+'$B$4="固定",'+SET+'$B$5,E'+(S+1)+'*'+SET+'$B$3)',v:target,s:6},
+      M.target!=null?"この月だけアプリで手入力された値":"設定シートの決め方で計算");
+    line(S+3,"実働（休日労働を除く）",{f:'SUMIFS(I5:I'+R+',C5:C'+R+',"出勤日")*24',v:cH,s:6},"時間");
+    line(S+4,"過不足",{f:'E'+(S+3)+'-E'+(S+2),v:diff,s:19},"マイナスは不足");
+    line(S+5,"時間外",{f:'MAX(0,E'+(S+4)+')',v:Math.max(0,diff),s:6},"総労働時間を超えた時間");
+    line(S+6,"法定労働時間の総枠",{f:'40*'+n+'/7',v:legal,s:6},"週40時間 × 暦日数 ÷ 7");
+    line(S+7,"法定内残業",{f:'MAX(0,MIN(E'+(S+3)+',E'+(S+6)+')-MAX(E'+(S+2)+',0))',v:inMin,s:6});
+    line(S+8,"時間外（法定外・月60時間まで）",{f:'MIN(60,MAX(0,E'+(S+3)+'-E'+(S+6)+'))',v:o60,s:6});
+    line(S+9,"時間外（法定外・月60時間超）",{f:'MAX(0,E'+(S+3)+'-E'+(S+6)+'-60)',v:o60p,s:6});
+    line(S+10,"深夜労働",{f:'SUM(J5:J'+R+')*24',v:night*24,s:6},"22:00〜5:00");
+    line(S+11,"休日労働（割増）時間",{f:'SUMIFS(I5:I'+R+',C5:C'+R+',"休日",K5:K'+R+',"割増")*24',v:holH*24,s:6});
+    line(S+12,"休日労働（割増）日数",{f:'COUNTIFS(C5:C'+R+',"休日",K5:K'+R+',"割増")',v:holD,s:18});
+    line(S+13,"休日出勤の未処理（日）",{f:'COUNTIFS(C5:C'+R+',"休日",K5:K'+R+',"未処理")',v:pend,s:18},"アプリで振替か割増を選ぶと反映されます");
+    line(S+14,"出張日数",{f:'COUNTIF(D5:D'+R+',"出張")',v:trips,s:18});
+    line(S+15,"移動時間",{f:'SUM(H5:H'+R+')*24',v:move*24,s:6},"実働に含む");
+    const ref={name:M.label,rows:{days:"E"+(S+1),target:"E"+(S+2),counted:"E"+(S+3),diff:"E"+(S+4),over:"E"+(S+5),night:"E"+(S+10),hol:"E"+(S+11),trips:"E"+(S+14)},
+      vals:{days:cnt,target,counted:cH,diff,over:Math.max(0,diff),night:night*24,hol:holH*24,trips}};
+    if(inc){
+      const Pr=S+17,B=SET+'$B$10';
+      sh.set(Pr,0,{v:"手当の試算",s:1});
+      sh.set(Pr+1,0,{v:"区分",s:2});sh.merges.push("A"+(Pr+1)+":D"+(Pr+1));
+      sh.set(Pr+1,4,{v:"時間",s:2});sh.set(Pr+1,5,{v:"倍率",s:2});sh.set(Pr+1,6,{v:"金額",s:2});
+      const prow=(r,label,hRef,hVal,rateF,rateV,amtF,amtV)=>{
+        sh.set(r,0,{v:label});sh.merges.push("A"+r+":D"+r);
+        sh.set(r,4,{f:hRef,v:hVal,s:6});sh.set(r,5,{f:rateF,v:rateV,s:14});sh.set(r,6,{f:amtF,v:amtV,s:7});};
+      const rd=v=>Math.round(v);
+      const a1=rd(inMin*base*(1+P.rIn/100)),a2=rd(o60*base*(1+P.rOver/100)),a3=rd(o60p*base*(1+P.r60/100));
+      const a4=flat?holD*P.holFlat:rd(holH*24*base*(1+P.rHol/100)),a5=rd(night*24*base*P.rNight/100);
+      prow(Pr+2,"法定内残業","E"+(S+7),inMin,"1+"+SET+"$B$12",1+P.rIn/100,"ROUND(E"+(Pr+2)+"*"+B+"*F"+(Pr+2)+",0)",a1);
+      prow(Pr+3,"時間外（法定外）","E"+(S+8),o60,"1+"+SET+"$B$13",1+P.rOver/100,"ROUND(E"+(Pr+3)+"*"+B+"*F"+(Pr+3)+",0)",a2);
+      prow(Pr+4,"時間外（月60時間超）","E"+(S+9),o60p,"1+"+SET+"$B$14",1+P.r60/100,"ROUND(E"+(Pr+4)+"*"+B+"*F"+(Pr+4)+",0)",a3);
+      prow(Pr+5,"休日出勤手当","E"+(S+11),holH*24,'IF('+SET+'$B$17="定額","定額",1+'+SET+'$B$16)',flat?"定額":1+P.rHol/100,
+        'IF('+SET+'$B$17="定額",E'+(S+12)+'*'+SET+'$B$18,ROUND(E'+(Pr+5)+'*'+B+'*(1+'+SET+'$B$16),0))',a4);
+      prow(Pr+6,"深夜割増","E"+(S+10),night*24,SET+"$B$15",P.rNight/100,"ROUND(E"+(Pr+6)+"*"+B+"*F"+(Pr+6)+",0)",a5);
+      sh.set(Pr+7,0,{v:"合計（試算）",s:12});sh.merges.push("A"+(Pr+7)+":D"+(Pr+7));
+      sh.set(Pr+7,6,{f:"SUM(G"+(Pr+2)+":G"+(Pr+6)+")",v:a1+a2+a3+a4+a5,s:16});
+      sh.set(Pr+8,0,{v:"未処理の休日出勤は含みません。金額は区分ごとに1円未満を四捨五入しています。深夜割増は割増分のみです。",s:15});
+      ref.rows.pay="G"+(Pr+7);ref.vals.pay=a1+a2+a3+a4+a5;
+    }
+    refs.push(ref);
+    return sh;
+  });
+
+  // 年間まとめ
+  const sum=newSheet("年間まとめ");sum.cols=[12,12,12,12,12,12,12,12,10,14];sum.freeze=4;
+  sum.set(1,0,{v:data.year+"年 勤怠まとめ",s:1});
+  sum.set(2,0,{v:"各月のシートの集計を表示しています。時間の単位はすべて「時間」です。",s:15});
+  const cols=[["所定労働日数","days",18],["総労働時間","target",6],["実働","counted",6],["過不足","diff",6],["時間外","over",6],["深夜","night",6],["休日労働","hol",6],["出張日数","trips",18]];
+  if(inc)cols.push(["手当合計（試算）","pay",7]);
+  sum.set(4,0,{v:"月",s:2});cols.forEach((c,i)=>sum.set(4,i+1,{v:c[0],s:2}));
+  refs.forEach((rf,k)=>{const r=5+k;sum.set(r,0,{v:rf.name});
+    cols.forEach((c,i)=>sum.set(r,i+1,{f:"'"+rf.name+"'!"+rf.rows[c[1]],v:rf.vals[c[1]],s:c[2]}));});
+  const tr=5+refs.length;
+  if(refs.length){
+    sum.set(tr,0,{v:"合計",s:12});
+    cols.forEach((c,i)=>{const L=colL(i+1);sum.set(tr,i+1,{f:"SUM("+L+"5:"+L+(tr-1)+")",v:refs.reduce((a,rf)=>a+rf.vals[c[1]],0),s:c[2]===7?16:c[2]===18?18:19});});
+  }
+
+  // 設定
+  const st=newSheet("設定");st.cols=[30,14,56];
+  st.set(1,0,{v:"設定",s:1});
+  st.set(2,0,{v:"黄色のセルは入力欄です。変更するとすべての月の集計と手当が再計算されます（値はアプリから書き出した時点のもの）。",s:15});
+  const srow=(r,label,cell,note)=>{st.set(r,0,{v:label,s:12});st.set(r,1,cell);if(note)st.set(r,2,{v:note,s:15});};
+  srow(3,"1日の標準時間（時間）",{v:data.settings.daily,s:9},"標準勤務 9:00〜18:00、休憩1時間");
+  srow(4,"総労働時間の決め方",{v:data.settings.mode==="fixed"?"固定":"自動",s:10},"「自動」＝所定労働日数×1日の標準時間、「固定」＝下の時間数");
+  srow(5,"固定の場合の総労働時間（時間）",{v:data.settings.target,s:9});
+  if(inc){
+    srow(6,"基礎時給の決め方",{v:P.basis==="hourly"?"時給":"月給",s:10},"「月給」または「時給」");
+    srow(7,"月給（円）",{v:P.salary||0,s:13},"割増賃金の基礎に含める手当を足した額");
+    srow(8,"月平均所定労働時間（時間）",{v:P.avg,s:9},"(365日 − 年間休日数) × 8時間 ÷ 12");
+    srow(9,"時給（円）",{v:P.hourly||0,s:13},"基礎時給の決め方が「時給」の場合");
+    srow(10,"基礎時給",{f:'IF(B6="時給",B9,IF(B8>0,B7/B8,0))',v:base,s:20},"計算式");
+    st.set(11,0,{v:"割増率",s:12});
+    srow(12,"法定内残業",{v:P.rIn/100,s:8});
+    srow(13,"時間外（法定外）",{v:P.rOver/100,s:8},"法定の最低は25%");
+    srow(14,"時間外（月60時間超）",{v:P.r60/100,s:8},"法定の最低は50%");
+    srow(15,"深夜",{v:P.rNight/100,s:8},"法定の最低は25%（割増分）");
+    srow(16,"休日労働（割増率方式の場合）",{v:P.rHol/100,s:8},"法定休日の最低は35%");
+    srow(17,"休日出勤手当の方式",{v:flat?"定額":"割増率",s:10},"「定額」または「割増率」");
+    srow(18,"休日出勤手当 1日あたり（円）",{v:P.holFlat,s:13},"会社規定");
+  }
+
+  const sheets=[sum,...monthSheets,st];
+  const files=[];
+  files.push({name:"[Content_Types].xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+sheets.map((s,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("")+'</Types>'});
+  files.push({name:"_rels/.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'});
+  files.push({name:"xl/workbook.xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>'+sheets.map((s,i)=>'<sheet name="'+esc(s.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join("")+'</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>'});
+  files.push({name:"xl/_rels/workbook.xml.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((s,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join("")+'<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'});
+  files.push({name:"xl/styles.xml",data:STYLES});
+  sheets.forEach((s,i)=>files.push({name:"xl/worksheets/sheet"+(i+1)+".xml",data:sheetXml(s,i===0)}));
+  return zip(files);
+}
+return {build};
+})();
+
+</script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,"0");
+const WD=["日","月","火","水","木","金","土"];
+const dayKey=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const monthOf=k=>k.slice(0,7);
+const md2=k=>Number(k.slice(5,7))+"/"+Number(k.slice(8,10));
+const hm=ms=>{const d=new Date(ms);return pad(d.getHours())+":"+pad(d.getMinutes());};
+const dur=min=>{if(min==null||isNaN(min))return "";min=Math.max(0,Math.round(min));return Math.floor(min/60)+":"+pad(min%60);};
+const sdur=min=>{const r=Math.round(min);return (r>0?"+":r<0?"−":"±")+dur(Math.abs(r));};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const parseKey=k=>k.split("-").map(Number);
+
+const JP_HOL=new Set(["2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-03-20","2026-04-29","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-07-20","2026-08-11","2026-09-21","2026-09-22","2026-09-23","2026-10-12","2026-11-03","2026-11-23",
+"2027-01-01","2027-01-11","2027-02-11","2027-02-23","2027-03-21","2027-03-22","2027-04-29","2027-05-03","2027-05-04","2027-05-05","2027-07-19","2027-08-11","2027-09-20","2027-09-23","2027-10-11","2027-11-03","2027-11-23"]);
+const FLEX_START=5,FLEX_END=22; // フレキシブルタイム 5:00〜22:00、それ以外は深夜
+
+/* ---------- storage ---------- */
+const S={db:null,uid:null,months:{},settings:{mode:"auto",daily:8,target:160,active:null,pay:{basis:"monthly",salary:0,avg:163.3,hourly:0,rIn:0,rOver:25,r60:50,rNight:25,rHol:35,holMode:"flat",holFlat:8000}},queues:{},downloads:null};
+const LS="kintai:";
+/* 端末内保存：メモリ上の復号済みデータ（CACHE）を正とし、書き込み時にパスコードの鍵で暗号化する */
+const LOCK_KEY=LS+"lock";const CACHE={};let CKEY=null;const writeChain={};
+const hasCrypto=!!(window.crypto&&crypto.subtle&&window.isSecureContext);
+function lsGet(k){return Object.prototype.hasOwnProperty.call(CACHE,k)?clone(CACHE[k]):null;}
+function lsSet(k,v){CACHE[k]=clone(v);return writeLS(k,v);}
+function writeLS(k,v){
+  const job=async()=>{try{
+    if(CKEY)localStorage.setItem(LS+k,JSON.stringify(await encryptJSON(CKEY,v)));
+    else localStorage.setItem(LS+k,JSON.stringify(v));
+  }catch(e){setSync("error");}};
+  writeChain[k]=(writeChain[k]||Promise.resolve()).then(job);return writeChain[k];
+}
+const b64=u=>{let s="";for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);};
+const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKey(pass,salt,iter){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptJSON(key,obj){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(obj))));
+  return {enc:1,iv:b64(iv),ct:b64(ct)};
+}
+async function decryptJSON(key,o){
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:ub64(o.iv)},key,ub64(o.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function lockMeta(){try{const v=localStorage.getItem(LOCK_KEY);return v?JSON.parse(v):null;}catch(e){return null;}}
+async function keyFromPass(pass,meta){
+  const key=await deriveKey(pass,ub64(meta.salt),meta.iter);
+  try{const v=await decryptJSON(key,meta.check);return v==="kintai-ok"?key:null;}catch(e){return null;}
+}
+async function loadCache(){
+  const keys=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(LS)&&k!==LOCK_KEY)keys.push(k);}}catch(e){}
+  for(const k of keys){
+    try{const raw=JSON.parse(localStorage.getItem(k));
+      CACHE[k.slice(LS.length)]=(raw&&raw.enc===1&&raw.iv&&raw.ct)?(CKEY?await decryptJSON(CKEY,raw):null):raw;
+    }catch(e){}
+  }
+}
+async function rewriteAll(){await Promise.all(Object.keys(CACHE).map(k=>writeLS(k,CACHE[k])));}
+function ref(key){return S.db.doc("data/users/"+S.uid+"/"+key);}
+function setSync(state){
+  const el=$("sync");el.classList.toggle("err",state==="error");
+  el.textContent=state==="error"?"保存できませんでした。再読み込みしてお試しください":state==="saving"?"保存中…":S.db?"アカウントに保存済み":(CKEY?"このスマホに暗号化して保存済み":"このスマホに保存済み");
+}
+async function loadMonth(mk){
+  if(S.months[mk])return S.months[mk];
+  let data=null;
+  if(S.db){try{const s=await ref("m-"+mk).get();data=s.exists?clone(s.data()):null;}catch(e){data=null;}}
+  else data=lsGet("m-"+mk);
+  data=data||{};data.days=data.days||{};data.cal=data.cal||{};data.furiOf=data.furiOf||{};
+  S.months[mk]=data;return data;
+}
+function persist(key,val){
+  if(!S.db){lsSet(key,val);setSync("saved");return;}
+  const q=S.queues[key]||(S.queues[key]={busy:false,pending:null});
+  q.pending=clone(val);if(!q.busy)drain(key);
+}
+async function drain(key){
+  const q=S.queues[key];q.busy=true;setSync("saving");
+  while(q.pending){
+    const v=q.pending;q.pending=null;
+    try{await ref(key).set(v);setSync("saved");}
+    catch(e){
+      if(e&&e.code==="unavailable"){await sleep(700+Math.random()*900);try{await ref(key).set(v);setSync("saved");}catch(e2){setSync("error");}}
+      else setSync("error");
+    }
+  }
+  q.busy=false;
+}
+const saveMonth=mk=>persist("m-"+mk,S.months[mk]);
+const saveSettings=()=>persist("settings",S.settings);
+
+/* ---------- calendar ---------- */
+const mdOf=key=>S.months[monthOf(key)];
+const recOf=key=>{const m=mdOf(key);return m?m.days[key]:null;};
+function natHol(key){const [y,m,d]=parseKey(key);const wd=new Date(y,m-1,d).getDay();return wd===0||wd===6||JP_HOL.has(key);}
+// 予定上の休日（振替で出勤日になる前の状態）
+function plannedHoliday(key,ovOverride){
+  const md=mdOf(key);const ov=ovOverride!==undefined?ovOverride:(md&&md.cal[key]);
+  if(ov==="off")return true;if(ov==="work")return false;
+  if(md&&md.furiOf[key])return true;
+  return natHol(key);
+}
+// 実際の休日（振替休日を取った休日出勤日は出勤日扱い）
+function isHoliday(key){
+  if(!plannedHoliday(key))return false;
+  const r=recOf(key);return !(r&&r.in&&r.holWork==="furikae");
+}
+
+/* ---------- time calculations ---------- */
+const sumSpans=(arr,now)=>(arr||[]).reduce((a,b)=>a+((b.e||now)-b.s)/60000,0);
+const breakMin=(r,now)=>typeof r.breakMin==="number"?r.breakMin:sumSpans(r.breaks,now);
+const moveMin=(r,now)=>typeof r.moveMin==="number"?r.moveMin:sumSpans(r.moves,now);
+function workMin(r,now){if(!r||!r.in)return null;return Math.max(0,((r.out||now)-r.in)/60000-breakMin(r,now));}
+function nightOverlap(a,b){
+  if(b<=a)return 0;const d0=new Date(a);let t=0;
+  for(let i=-1;i<4;i++){
+    const ws=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+i,FLEX_END).getTime();
+    const we=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+i+1,FLEX_START).getTime();
+    if(ws>=b)break;t+=Math.max(0,Math.min(b,we)-Math.max(a,ws));
+  }
+  return t/60000;
+}
+function nightMin(r,now){
+  if(!r||!r.in)return 0;const end=r.out||now;
+  let n=nightOverlap(r.in,end);
+  (r.breaks||[]).forEach(b=>{n-=nightOverlap(Math.max(b.s,r.in),Math.min(b.e||now,end));});
+  return Math.max(0,Math.min(n,workMin(r,now)));
+}
+const isNightNow=d=>d.getHours()>=FLEX_END||d.getHours()<FLEX_START;
+function workdays(mk){const [y,m]=mk.split("-").map(Number);const n=new Date(y,m,0).getDate();let c=0;for(let d=1;d<=n;d++)if(!isHoliday(mk+"-"+pad(d)))c++;return c;}
+const monthTarget=mk=>{const md=S.months[mk];if(md&&typeof md.target==="number")return md.target;return S.settings.mode==="auto"?workdays(mk)*S.settings.daily:S.settings.target;};
+function status(){
+  const a=S.settings.active;const r=a&&recOf(a);
+  if(!r||!r.in||r.out)return "off";
+  const b=(r.breaks||[]).at(-1);if(b&&!b.e)return "break";
+  const m=(r.moves||[]).at(-1);if(m&&!m.e)return "move";
+  return "work";
+}
+function monthStats(mk,now){
+  const md=S.months[mk]||{days:{}};
+  const [y,m]=mk.split("-").map(Number);const n=new Date(y,m,0).getDate();
+  const todayK=dayKey(new Date(now));
+  const st={days:0,counted:0,holPrem:0,holPremDays:0,holPend:0,holPendDays:0,furiDays:0,night:0,move:0,tripDays:0,remainDays:0};
+  for(let d=1;d<=n;d++){
+    const key=mk+"-"+pad(d);const r=md.days[key];const hol=isHoliday(key);
+    if(r&&r.in){
+      const w=workMin(r,now);st.days++;st.night+=nightMin(r,now);
+      if(hol){if(r.holWork==="premium"){st.holPrem+=w;st.holPremDays++;}else{st.holPend+=w;st.holPendDays++;}}
+      else{st.counted+=w;if(r.holWork==="furikae")st.furiDays++;}
+      if(r.trip){st.move+=moveMin(r,now);st.tripDays++;}
+    }
+    if(!hol&&(key>todayK||(key===todayK&&!(r&&r.in))))st.remainDays++;
+  }
+  st.target=monthTarget(mk)*60;
+  st.diff=st.counted-st.target;
+  st.over=Math.max(0,st.diff);
+  st.legal=40*n/7*60;
+  st.overLegal=Math.max(0,st.counted-st.legal);
+  return st;
+}
+
+/* ---------- punching ---------- */
+async function punch(kind){
+  const now=Date.now();const today=dayKey(new Date(now));
+  if(kind==="in"||kind==="inTrip"){
+    const mk=monthOf(today);await loadMonth(mk);
+    const prev=S.months[mk].days[today]||{};
+    const r={in:now,out:null,breaks:[],moves:[],trip:kind==="inTrip",note:prev.note||""};
+    if(kind==="inTrip")r.moves.push({s:now,e:null});
+    S.months[mk].days[today]=r;S.settings.active=today;saveMonth(mk);saveSettings();
+  }else{
+    const k=S.settings.active;const r=recOf(k);if(!r)return;
+    r.breaks=r.breaks||[];r.moves=r.moves||[];
+    const ob=r.breaks.at(-1),om=r.moves.at(-1);
+    const closeB=()=>{if(ob&&!ob.e)ob.e=now;},closeM=()=>{if(om&&!om.e)om.e=now;};
+    if(kind==="bstart"){closeM();r.breaks.push({s:now,e:null});}
+    else if(kind==="bend"){closeB();}
+    else if(kind==="mstart"){closeB();r.moves.push({s:now,e:null});}
+    else if(kind==="mend"){closeM();}
+    else if(kind==="out"){closeB();closeM();r.out=now;S.settings.active=null;saveSettings();}
+    saveMonth(monthOf(k));
+  }
+  renderAll();
+  const rec=$("recorder");rec.classList.remove("flash");void rec.offsetWidth;rec.classList.add("flash");
+}
+
+/* ---------- rendering ---------- */
+let viewMonth=dayKey(new Date()).slice(0,7);
+function chips(key,now){
+  const r=recOf(key);const md=mdOf(key);let h="";
+  if(r&&r.trip)h+='<span class="chip trip">出張</span>';
+  if(r&&r.in&&plannedHoliday(key)){
+    if(r.holWork==="furikae")h+='<span class="chip off">休出→振替'+(r.furiDate?" "+md2(r.furiDate):"")+'</span>';
+    else if(r.holWork==="premium")h+='<span class="chip hol">休出・割増</span>';
+    else h+='<span class="chip warn">休出・未処理</span>';
+  }
+  if(md&&md.furiOf[key])h+='<span class="chip off">振替休日（'+md2(md.furiOf[key])+'分）</span>';
+  else if(!(r&&r.in)&&md&&md.cal[key]==="off")h+='<span class="chip off">休業日</span>';
+  else if(!(r&&r.in)&&md&&md.cal[key]==="work")h+='<span class="chip off">出勤日</span>';
+  if(r&&r.in&&nightMin(r,now)>0)h+='<span class="chip night">深夜</span>';
+  return h;
+}
+function renderRecorder(){
+  const nowD=new Date();const now=nowD.getTime();const tk=dayKey(nowD);
+  const md=mdOf(tk);
+  $("date").textContent=nowD.getFullYear()+"年"+(nowD.getMonth()+1)+"月"+nowD.getDate()+"日（"+WD[nowD.getDay()]+"）"+(md&&md.furiOf[tk]?"　振替休日":plannedHoliday(tk)?"　休日":"");
+  $("clock").innerHTML=pad(nowD.getHours())+":"+pad(nowD.getMinutes())+'<span class="sec">'+pad(nowD.getSeconds())+"</span>";
+  const s=status();
+  $("status").dataset.s=s;
+  $("statusText").textContent={off:"勤務外",work:"勤務中",break:"休憩中",move:"移動中"}[s];
+  const shownKey=S.settings.active||tk;const r=recOf(shownKey);
+  let c="";
+  if(s!=="off"){
+    if(r.trip)c+='<span class="chip trip">出張</span>';
+    if(plannedHoliday(shownKey))c+='<span class="chip hol">休日出勤</span>';
+    if(s!=="break"&&isNightNow(nowD))c+='<span class="chip night">深夜時間帯</span>';
+  }
+  $("statusChips").innerHTML=c;
+  const cells=[
+    ["始業",r&&r.in?hm(r.in):"--:--"],["終業",r&&r.out?hm(r.out):"--:--"],
+    ["休憩",r&&r.in?dur(breakMin(r,now)):"0:00"],["移動",r&&r.trip?dur(moveMin(r,now)):"—"],
+    ["実働",r&&r.in?dur(workMin(r,now)):"0:00"],["深夜",r&&r.in?dur(nightMin(r,now)):"0:00"]
+  ];
+  $("todayline").innerHTML=cells.map(c=>'<div><dt>'+c[0]+'</dt><dd class="dot">'+c[1]+'</dd></div>').join("");
+  const mk=tk.slice(0,7);
+  if(S.months[mk]){
+    const st=monthStats(mk,now);
+    const b=$("bal");b.textContent=sdur(st.diff);b.className="val dot "+(st.diff>=0.5?"plus":st.diff<=-0.5?"minus":"");
+    const remain=st.target-st.counted;
+    $("balSub").textContent=remain>0?(st.remainDays>0?"残り"+st.remainDays+"日、1日あたり"+dur(remain/st.remainDays):"残り"+dur(remain)):"時間外 "+dur(st.over);
+  }
+}
+let lastActionsKey="";
+function renderActions(){
+  const s=status();const today=dayKey(new Date());const r=recOf(today);
+  const finished=s==="off"&&r&&r.out;
+  const ar=s!=="off"?recOf(S.settings.active):null;const trip=!!(ar&&ar.trip);
+  const key=s+"|"+(finished?"f":"")+"|"+(trip?"t":"");
+  if(key===lastActionsKey)return;lastActionsKey=key;
+  const el=$("actions");el.innerHTML="";
+  const mk=(label,kind,cls)=>{const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;b.onclick=()=>punch(kind);el.appendChild(b);};
+  if(s==="off"){
+    if(finished)el.innerHTML='<p class="done">本日の終業を記録しました。修正は下の表から行えます。</p>';
+    else{mk("始業","in");mk("出張で始業（移動から）","inTrip","trip");}
+  }else if(s==="work"){if(trip)mk("移動開始","mstart","trip");mk("休憩開始","bstart","sub");mk("終業","out");}
+  else if(s==="move"){mk("移動終了・業務開始","mend","trip");mk("休憩開始","bstart","sub");mk("終業","out");}
+  else{mk("休憩終了","bend","sub");if(trip)mk("移動開始","mstart","trip");mk("終業","out");}
+}
+function renderMonth(){
+  const [y,m]=viewMonth.split("-").map(Number);
+  $("mtitle").textContent=y+"年"+m+"月";
+  const md=S.months[viewMonth]||{days:{},cal:{},furiOf:{}};
+  const n=new Date(y,m,0).getDate();const now=Date.now();const todayK=dayKey(new Date());
+  let rows="";
+  for(let d=1;d<=n;d++){
+    const key=viewMonth+"-"+pad(d);const wd=new Date(y,m-1,d).getDay();const r=md.days[key];
+    const ph=plannedHoliday(key);
+    const cls=[ph?(wd===6&&!JP_HOL.has(key)&&!md.cal[key]&&!md.furiOf[key]?"sat":"hday"):"",key===todayK?"today":""].join(" ").trim();
+    let tIn='<span class="dim">—</span>',tOut="",tB="",tM="",tW="",tN="";
+    if(r&&r.in){
+      tIn='<span class="stamp dot">'+hm(r.in)+"</span>";
+      tOut=r.out?'<span class="stamp dot">'+hm(r.out)+"</span>":'<span class="live">'+(key===S.settings.active?"勤務中":"未退勤")+"</span>";
+      tB='<span class="dot">'+dur(breakMin(r,now))+"</span>";
+      tM=r.trip?'<span class="dot">'+dur(moveMin(r,now))+"</span>":"";
+      tW='<span class="dot">'+dur(workMin(r,now))+"</span>";
+      const nm=nightMin(r,now);tN=nm>0?'<span class="dot">'+dur(nm)+"</span>":"";
+    }
+    rows+='<tr class="'+cls+'" data-k="'+key+'" tabindex="0" aria-label="'+m+"月"+d+'日の記録を修正"><td class="dot">'+d+'</td><td class="wd">'+WD[wd]+(JP_HOL.has(key)?"祝":"")+'</td><td><div style="display:flex;gap:4px">'+chips(key,now)+"</div></td><td>"+tIn+"</td><td>"+tOut+'</td><td class="num">'+tB+'</td><td class="num">'+tM+'</td><td class="num">'+tW+'</td><td class="num">'+tN+'</td><td class="memo">'+(r&&r.note?esc(r.note):"")+"</td></tr>";
+  }
+  $("rows").innerHTML=rows;
+  const st=monthStats(viewMonth,now);
+  if(document.activeElement!==$("mTarget"))$("mTarget").value=monthTarget(viewMonth);
+  $("targetNote").textContent=(typeof md.target==="number"?"この月だけの設定です（空欄にすると標準に戻ります）":S.settings.mode==="auto"?"所定労働日数"+workdays(viewMonth)+"日 × "+S.settings.daily+"時間で自動計算":"固定値を使用")+"。法定総枠は"+dur(st.legal)+"です。";
+  const diffCls=st.diff>=0.5?"plus":st.diff<=-0.5?"minus":"";
+  const tot=[
+    ["実働（休日労働を除く）",dur(st.counted),""],["過不足",sdur(st.diff),diffCls],
+    ["時間外",dur(st.over),""],["うち法定総枠の超過",dur(st.overLegal),""],
+    ["深夜労働",dur(st.night),""],["休日労働（割増）",dur(st.holPrem)+"（"+st.holPremDays+"日）",""],
+    ["休日出勤の未処理",st.holPendDays?st.holPendDays+"日（"+dur(st.holPend)+"）":"なし",st.holPendDays?"minus":""],
+    ["振替済みの休日出勤",st.furiDays+"日",""],
+    ["出勤日数",st.days+"日",""],["出張（うち移動）",st.tripDays+"日（"+dur(st.move)+"）",""]
+  ];
+  renderPay(st);
+  $("totals").innerHTML=tot.map(t=>"<div><dt>"+t[0]+'</dt><dd class="dot '+t[2]+'">'+t[1]+"</dd></div>").join("");
+}
+const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+function baseRate(){const p=S.settings.pay;const b=p.basis==="hourly"?p.hourly:(p.avg>0?p.salary/p.avg:0);return b>0?b:0;}
+function payCalc(st){
+  const p=S.settings.pay;const base=baseRate();const flat=p.holMode==="flat";
+  if(!base&&!flat)return null;
+  const inMin=Math.max(0,Math.min(st.counted,st.legal)-Math.max(st.target,0));
+  const o=st.overLegal,o60=Math.min(o,3600),o60p=Math.max(0,o-3600);
+  const rows=[
+    ["法定内残業","総労働時間を超え、法定総枠までの時間",inMin,1+p.rIn/100],
+    ["時間外（法定外）","法定総枠を超えた時間（月60時間まで）",o60,1+p.rOver/100],
+    ["時間外 月60時間超","法定外のうち月60時間を超えた時間",o60p,1+p.r60/100],
+    ["休日労働","割増賃金を選んだ休日出勤",st.holPrem,1+p.rHol/100],
+    ["深夜割増","22:00〜5:00の勤務（割増分のみ）",st.night,p.rNight/100]
+  ].filter((r,i)=>i!==2||r[2]>0).map(r=>({name:r[0],desc:r[1],min:r[2],rate:r[3],amt:Math.round(r[2]/60*base*r[3])}));
+  let legalHol=null;
+  if(flat){
+    const h=rows.find(r=>r.name==="休日労働");
+    h.name="休日出勤手当（定額）";h.desc=yen(p.holFlat)+" × "+st.holPremDays+"日";h.rate=null;h.amt=p.holFlat*st.holPremDays;
+    if(base)legalHol=Math.round(st.holPrem/60*base*1.35);
+  }
+  const used=base?rows:rows.filter(r=>r.rate===null);
+  return {base,rows:used,total:used.reduce((a,r)=>a+r.amt,0),legalHol};
+}
+function renderPay(st){
+  const pc=payCalc(st);
+  if(!pc){$("payBase").textContent="";$("payBody").innerHTML='<p class="pempty">勤務設定で月給か時給を入力すると、残業代・休日手当・深夜手当を自動で計算します。</p>';return;}
+  $("payBase").textContent=pc.base?"基礎時給 "+yen(pc.base)+"（"+pc.base.toFixed(2)+"円）":"基礎時給が未設定のため、休日出勤手当のみ表示しています";
+  let h='<div class="tablewrap"><table class="paytbl"><thead><tr><th>区分</th><th class="num">時間</th><th class="num">倍率</th><th class="num">金額</th></tr></thead><tbody>';
+  pc.rows.forEach(r=>{h+='<tr style="cursor:default"><td>'+r.name+'<div style="font-size:.78rem;color:var(--muted)">'+r.desc+'</div></td><td class="num dot">'+dur(r.min)+'</td><td class="num dot">'+(r.rate===null?"定額":r.rate.toFixed(2))+'</td><td class="num dot">'+yen(r.amt)+'</td></tr>';});
+  h+='</tbody><tfoot><tr><td colspan="3">合計（試算）</td><td class="num dot paytotal">'+yen(pc.total)+'</td></tr></tfoot></table></div>';
+  const notes=[];
+  if(st.holPendDays)notes.push("休日出勤の未処理が"+st.holPendDays+"日あります。割増賃金を選ぶと休日労働に加算されます。");
+  if(pc.legalHol!==null&&st.holPremDays&&S.settings.pay.holFlat*st.holPremDays<pc.legalHol)notes.push("休日出勤手当（定額）が、時間 × 1.35で計算した額（"+yen(pc.legalHol)+"）を下回っています。法定休日の労働が含まれる場合は差額の支払いが必要になることがあるので、人事に確認してください。");
+  if(st.diff<-0.5)notes.push("総労働時間に"+dur(-st.diff)+"不足しています。不足分の扱い（控除または翌月繰越）は会社の規定を確認してください。");
+  notes.push("1円未満は区分ごとに四捨五入しています。実際の支給額は給与計算の端数処理により異なる場合があります。");
+  h+='<p class="hint" style="padding:0 16px 14px">'+notes.join("<br>")+'</p>';
+  $("payBody").innerHTML=h;
+}
+function renderAll(){renderRecorder();renderActions();renderMonth();}
+
+/* ---------- editing ---------- */
+let editing=null,orig={};
+function updateHolUI(){
+  const ov=$("eDay").value;const planned=plannedHoliday(editing,ov||null);
+  $("eHolWrap").hidden=!(planned&&$("eIn").value);
+  $("eFuriWrap").hidden=$("eHol").value!=="furikae";
+  $("eMoveWrap").hidden=!$("eTrip").checked;
+}
+function openEdit(key){
+  editing=key;const md=mdOf(key);const r=(md&&md.days[key])||{};const now=Date.now();
+  const [y,m,d]=parseKey(key);
+  $("editTitle").textContent=y+"年"+m+"月"+d+"日（"+WD[new Date(y,m-1,d).getDay()]+"）の記録";
+  const fo=md&&md.furiOf[key];
+  $("editNote").hidden=!fo;if(fo)$("editNote").textContent="この日は"+md2(fo)+"の休日出勤に対する振替休日です。変更する場合は"+md2(fo)+"の記録から行ってください。";
+  $("eDay").value=(md&&md.cal[key])||"";
+  $("eTrip").checked=!!r.trip;
+  $("eIn").value=r.in?hm(r.in):"";$("eOut").value=r.out?hm(r.out):"";
+  orig.b=r.in?String(Math.round(breakMin(r,now))):"";orig.m=r.in?String(Math.round(moveMin(r,now))):"";
+  $("eBreak").value=orig.b;$("eMove").value=orig.m;
+  {const P=S.settings.pay;$("eHol").options[1].textContent=P.holMode==="flat"?"割増賃金（1日"+Number(P.holFlat).toLocaleString("ja-JP")+"円）":"割増賃金";}
+  $("eHol").value=r.holWork||"";$("eFuri").value=r.furiDate||"";
+  $("eNote").value=r.note||"";$("eErr").textContent="";
+  $("eDelete").hidden=!r.in;
+  updateHolUI();
+  $("edit").showModal();
+}
+["eDay","eTrip","eIn","eHol"].forEach(id=>$(id).addEventListener("input",updateHolUI));
+$("eDay").addEventListener("change",updateHolUI);$("eHol").addEventListener("change",updateHolUI);$("eTrip").addEventListener("change",updateHolUI);
+function toMs(key,t){const [y,m,d]=parseKey(key);const [h,mi]=t.split(":").map(Number);return new Date(y,m-1,d,h,mi).getTime();}
+async function unlinkFuri(src,date){
+  if(!date)return;const mk=monthOf(date);const t=await loadMonth(mk);
+  if(t.furiOf[date]===src){delete t.furiOf[date];saveMonth(mk);}
+}
+async function saveEdit(){
+  const key=editing;const mk=monthOf(key);await loadMonth(mk);
+  const md=S.months[mk];const old=md.days[key]||{};const now=Date.now();
+  const vin=$("eIn").value,vout=$("eOut").value,vb=$("eBreak").value,vm=$("eMove").value,note=$("eNote").value.trim(),trip=$("eTrip").checked;
+  const dayv=$("eDay").value;
+  const err=t=>{$("eErr").textContent=t;return false;};
+  if(!vin&&vout)return err("終業だけを記録することはできません。始業時刻を入力してください。");
+  const planned=plannedHoliday(key,dayv||null);
+  let holWork=vin&&planned?$("eHol").value:"";let furiDate=holWork==="furikae"?$("eFuri").value:"";
+  if(holWork==="furikae"){
+    if(!furiDate)return err("振替休日の日付を選んでください。");
+    if(furiDate===key)return err("振替休日には休日出勤した日と別の日を選んでください。");
+    const tm=await loadMonth(monthOf(furiDate));
+    const other=tm.furiOf[furiDate];
+    if(other&&other!==key)return err(md2(furiDate)+"はすでに"+md2(other)+"の振替休日になっています。");
+    if(!other&&plannedHoliday(furiDate))return err(md2(furiDate)+"はもともと休日です。出勤日を選んでください。");
+    const tr=tm.days[furiDate];if(tr&&tr.in)return err(md2(furiDate)+"には勤務記録があります。別の日を選んでください。");
+  }
+  if(dayv)md.cal[key]=dayv;else delete md.cal[key];
+  if(old.holWork==="furikae"&&old.furiDate&&old.furiDate!==furiDate)await unlinkFuri(key,old.furiDate);
+  if(!vin){
+    if(note||trip)md.days[key]={note,trip};else delete md.days[key];
+    if(S.settings.active===key){S.settings.active=null;saveSettings();}
+  }else{
+    const r={in:toMs(key,vin),out:null,breaks:old.breaks||[],moves:old.moves||[],trip,note};
+    if(typeof old.breakMin==="number")r.breakMin=old.breakMin;
+    if(typeof old.moveMin==="number")r.moveMin=old.moveMin;
+    if(vout){let o=toMs(key,vout);if(o<=r.in)o+=86400000;r.out=o;}
+    if(vb!==orig.b)r.breakMin=Math.max(0,Number(vb)||0);
+    if(trip&&vm!==orig.m)r.moveMin=Math.max(0,Number(vm)||0);
+    if(r.out){[r.breaks.at(-1),r.moves.at(-1)].forEach(x=>{if(x&&!x.e)x.e=r.out;});}
+    const span=((r.out||now)-r.in)/60000;
+    if(r.out&&breakMin(r,now)>span)return err("休憩時間が勤務時間を超えています。");
+    if(r.out&&trip&&breakMin(r,now)+moveMin(r,now)>span)return err("休憩と移動の合計が勤務時間を超えています。");
+    if(holWork){r.holWork=holWork;if(furiDate)r.furiDate=furiDate;}
+    md.days[key]=r;
+    if(furiDate){const fm=monthOf(furiDate);S.months[fm].furiOf[furiDate]=key;if(fm!==mk)saveMonth(fm);}
+    if(r.out&&S.settings.active===key){S.settings.active=null;saveSettings();}
+    if(!r.out&&!S.settings.active&&key===dayKey(new Date())){S.settings.active=key;saveSettings();}
+  }
+  saveMonth(mk);lastActionsKey="";renderAll();return true;
+}
+
+/* ---------- CSV ---------- */
+function buildCsv(){
+  const [y,m]=viewMonth.split("-").map(Number);const md=S.months[viewMonth]||{days:{},furiOf:{}};
+  const n=new Date(y,m,0).getDate();const now=Date.now();
+  const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const lines=[["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働の扱い","振替休日","メモ"].map(q).join(",")];
+  for(let d=1;d<=n;d++){
+    const key=viewMonth+"-"+pad(d);const r=md.days[key];
+    const kind=md.furiOf[key]?"振替休日（"+md.furiOf[key]+"分）":plannedHoliday(key)?"休日":"出勤日";
+    const row=[key,WD[new Date(y,m-1,d).getDay()],kind,r&&r.trip?"出張":"","","","","","","","","",r&&r.note||""];
+    if(r&&r.in){
+      row[4]=hm(r.in);row[5]=r.out?hm(r.out):"";row[6]=dur(breakMin(r,now));row[7]=r.trip?dur(moveMin(r,now)):"";
+      row[8]=dur(workMin(r,now));row[9]=dur(nightMin(r,now));
+      if(plannedHoliday(key)){row[10]=r.holWork==="premium"?"割増賃金":r.holWork==="furikae"?"振替休日":"未処理";row[11]=r.furiDate||"";}
+    }
+    lines.push(row.map(q).join(","));
+  }
+  const st=monthStats(viewMonth,now);
+  lines.push("");
+  [["総労働時間",dur(st.target)],["実働（休日労働を除く）",dur(st.counted)],["過不足",sdur(st.diff)],["時間外",dur(st.over)],["うち法定総枠の超過",dur(st.overLegal)],
+   ["深夜労働",dur(st.night)],["休日労働（割増）",dur(st.holPrem)],["休日出勤の未処理",dur(st.holPend)],["うち移動時間",dur(st.move)]]
+    .forEach(p=>lines.push(p.map(q).join(",")));
+  const pc=payCalc(st);
+  if(pc){lines.push("");lines.push([q("手当の試算"),q("時間"),q("倍率"),q("金額")].join(","));
+    pc.rows.forEach(r=>lines.push([r.name,dur(r.min),r.rate===null?"定額":r.rate.toFixed(2),Math.round(r.amt)].map(q).join(",")));
+    lines.push([q("合計"),q(""),q(""),q(Math.round(pc.total))].join(","));if(pc.base)lines.push([q("基礎時給"),q(pc.base.toFixed(2))].join(","));}
+  return "\uFEFF"+lines.join("\r\n");
+}
+
+/* ---------- events ---------- */
+async function showMonth(mk){viewMonth=mk;await loadMonth(mk);renderMonth();}
+function shift(delta){const [y,m]=viewMonth.split("-").map(Number);const d=new Date(y,m-1+delta,1);showMonth(d.getFullYear()+"-"+pad(d.getMonth()+1));}
+$("prev").onclick=()=>shift(-1);$("next").onclick=()=>shift(1);
+$("thisMonth").onclick=()=>showMonth(dayKey(new Date()).slice(0,7));
+$("rows").addEventListener("click",e=>{const tr=e.target.closest("tr[data-k]");if(tr)openEdit(tr.dataset.k);});
+$("rows").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const tr=e.target.closest("tr[data-k]");if(tr){e.preventDefault();openEdit(tr.dataset.k);}}});
+$("editForm").addEventListener("submit",async e=>{e.preventDefault();if(await saveEdit())$("edit").close();});
+$("eCancel").onclick=()=>$("edit").close();
+$("eDelete").onclick=async()=>{$("eIn").value="";$("eOut").value="";$("eHol").value="";if(await saveEdit())$("edit").close();};
+$("mTarget").addEventListener("change",()=>{
+  const md=S.months[viewMonth];const v=Number($("mTarget").value);
+  if($("mTarget").value===""||isNaN(v))delete md.target;else md.target=Math.max(0,v);
+  saveMonth(viewMonth);renderAll();
+});
+function fillPayUI(){const P=S.settings.pay;$("pBasis").value=P.basis;$("pSalary").value=P.salary||"";$("pAvg").value=P.avg;$("pHourly").value=P.hourly||"";
+  $("rIn").value=P.rIn;$("rOver").value=P.rOver;$("r60").value=P.r60;$("rNight").value=P.rNight;$("rHol").value=P.rHol;$("pHolMode").value=P.holMode;$("pHolFlat").value=P.holFlat;syncPayUI();}
+function syncPayUI(){const m=$("pBasis").value==="monthly";$("wSalary").hidden=!m;$("wAvg").hidden=!m;$("wHourly").hidden=m;
+  const f=$("pHolMode").value==="flat";$("wHolFlat").hidden=!f;$("wRHol").hidden=f;}
+$("pBasis").addEventListener("change",syncPayUI);$("pHolMode").addEventListener("change",syncPayUI);
+function syncModeUI(){const a=$("setMode").value==="auto";$("wDaily").hidden=!a;$("wTarget").hidden=a;}
+$("setMode").addEventListener("change",syncModeUI);
+$("saveSettings").onclick=()=>{
+  S.settings.mode=$("setMode").value;
+  S.settings.daily=Math.min(24,Math.max(0,Number($("setDaily").value)||8));
+  S.settings.target=Math.max(0,Number($("setTarget").value)||160);
+  const P=S.settings.pay,num=(id,def,min)=>{const v=Number($(id).value);return isNaN(v)||$(id).value===""?def:Math.max(min,v);};
+  P.basis=$("pBasis").value;P.salary=num("pSalary",0,0);P.avg=num("pAvg",163.3,1);P.hourly=num("pHourly",0,0);
+  P.rIn=num("rIn",0,0);P.rOver=num("rOver",25,25);P.r60=num("r60",50,50);P.rNight=num("rNight",25,25);P.rHol=num("rHol",35,35);P.holMode=$("pHolMode").value;P.holFlat=num("pHolFlat",8000,0);
+  fillPayUI();
+  saveSettings();renderAll();
+  const b=$("saveSettings");b.textContent="保存しました";setTimeout(()=>b.textContent="設定を保存",1500);
+};
+const canSaveFiles=()=>!!S.downloads||!window.claude;
+async function saveFile(name,text,mime){
+  if(S.downloads){
+    try{await S.downloads.save({filename:name,data:text});return true;}
+    catch(e){if(e&&(e.code==="unavailable"||e.code==="not_granted")){$("csv").hidden=true;$("xlsx").hidden=true;$("bkExport").hidden=true;}return false;}
+  }
+  const blob=new Blob([text],{type:mime});
+  try{
+    const f=new File([blob],name,{type:mime});
+    if(navigator.canShare&&navigator.canShare({files:[f]})&&/iPhone|iPad|Android/i.test(navigator.userAgent)){await navigator.share({files:[f],title:name});return true;}
+  }catch(e){if(e&&e.name==="AbortError")return false;}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);return true;
+}
+$("csv").onclick=()=>saveFile("勤怠_"+viewMonth+".csv",buildCsv(),"text/csv");
+async function collectBackup(){
+  const months={};
+  if(S.db){const q=await S.db.collection("data/users/"+S.uid).get();q.docs.forEach(d=>{if(d.id.startsWith("m-"))months[d.id.slice(2)]=clone(d.data());});}
+  else{Object.keys(CACHE).forEach(k=>{if(k.startsWith("m-")&&CACHE[k])months[k.slice(2)]=clone(CACHE[k]);});}
+  Object.keys(S.months).forEach(mk=>{months[mk]=clone(S.months[mk]);});
+  Object.keys(months).forEach(mk=>{const m=months[mk];if(!m||(!Object.keys(m.days||{}).length&&!Object.keys(m.cal||{}).length&&!Object.keys(m.furiOf||{}).length&&typeof m.target!=="number"))delete months[mk];});
+  return {app:"kintai-card",version:1,exportedAt:new Date().toISOString(),settings:clone(S.settings),months};
+}
+/* ---------- 入力ダイアログ ---------- */
+function askDialog(o){return new Promise(res=>{
+  $("askTitle").textContent=o.title;$("askText").textContent=o.text||"";$("askText").hidden=!o.text;
+  $("askErr").textContent="";$("askOk").textContent=o.ok||"OK";$("askOk").className=o.danger?"primary danger-fill":"primary";
+  const box=$("askFields");box.innerHTML="";const els={};
+  (o.fields||[]).forEach(f=>{
+    const lab=document.createElement("label");let el;
+    if(f.type==="checkbox"){lab.className="c full";el=document.createElement("input");el.type="checkbox";el.checked=!!f.value;lab.append(el,document.createTextNode(f.label));}
+    else{
+      lab.className="f full";lab.append(document.createTextNode(f.label));
+      if(f.type==="select"){el=document.createElement("select");f.options.forEach(([v,t])=>{const op=document.createElement("option");op.value=v;op.textContent=t;el.appendChild(op);});el.value=f.value;}
+      else{el=document.createElement("input");el.type=f.type||"text";if(f.inputmode)el.inputMode=f.inputmode;el.autocomplete="off";if(f.value!=null)el.value=f.value;if(f.placeholder)el.placeholder=f.placeholder;}
+      lab.appendChild(el);
+    }
+    els[f.id]=el;box.appendChild(lab);
+  });
+  const dlg=$("ask");let busy=false;
+  const done=v=>{dlg.removeEventListener("cancel",onCancel);$("askForm").onsubmit=null;$("askCancel").onclick=null;if(dlg.open)dlg.close();res(v);};
+  const onCancel=e=>{e.preventDefault();if(!busy)done(null);};
+  dlg.addEventListener("cancel",onCancel);
+  $("askCancel").onclick=()=>{if(!busy)done(null);};
+  $("askForm").onsubmit=async e=>{
+    e.preventDefault();if(busy)return;
+    const vals={};for(const k in els)vals[k]=els[k].type==="checkbox"?els[k].checked:els[k].value;
+    if(o.validate){busy=true;$("askOk").disabled=true;$("askErr").textContent="確認中…";
+      let m;try{m=await o.validate(vals);}catch(err){m="処理できませんでした。もう一度お試しください。";}
+      busy=false;$("askOk").disabled=false;$("askErr").textContent=m||"";if(m)return;}
+    done(vals);
+  };
+  dlg.showModal();
+  const first=box.querySelector("input:not([type=checkbox]),select");if(first)first.focus();
+});}
+const passOK=p=>/^.{4,32}$/.test(p);
+
+/* ---------- バックアップ（パスワードで暗号化可） ---------- */
+$("bkExport").onclick=async()=>{
+  const v=await askDialog({title:"バックアップを書き出す",
+    text:"パスワードを付けると、ファイルを開くのにそのパスワードが必要になります。月給などの給与情報も含まれるので、付けておくのがおすすめです。",
+    fields:[{id:"p1",label:"パスワード（空欄なら付けない）",type:"password"},{id:"p2",label:"パスワード（確認）",type:"password"}],ok:"書き出す",
+    validate:x=>x.p1!==x.p2?"確認用のパスワードが一致しません。":(x.p1&&!passOK(x.p1))?"パスワードは4文字以上にしてください。":(x.p1&&!hasCrypto)?"この環境では暗号化を使えません。":""});
+  if(!v)return;
+  $("bkMsg").textContent="書き出し中…";
+  try{
+    const b=await collectBackup();let out=b;
+    if(v.p1){const salt=crypto.getRandomValues(new Uint8Array(16)),iter=250000;const key=await deriveKey(v.p1,salt,iter);
+      out=Object.assign({app:"kintai-card",version:1,encrypted:true,salt:b64(salt),iter},await encryptJSON(key,b));}
+    const ok=await saveFile("勤怠カード_バックアップ_"+dayKey(new Date())+".json",JSON.stringify(out),"application/json");
+    $("bkMsg").textContent=ok?Object.keys(b.months).length+"か月分を"+(v.p1?"パスワード付きで":"")+"書き出しました。":"";
+  }catch(e){$("bkMsg").textContent="書き出せませんでした。もう一度お試しください。";}
+};
+$("bkImport").onclick=()=>$("bkFile").click();
+$("bkFile").addEventListener("change",async()=>{
+  const f=$("bkFile").files[0];$("bkFile").value="";if(!f)return;
+  let b;try{b=JSON.parse(await f.text());}catch(e){b=null;}
+  if(!b||b.app!=="kintai-card"){$("bkMsg").textContent="勤怠カードのバックアップファイルではありません。";return;}
+  if(b.encrypted){
+    if(!hasCrypto){$("bkMsg").textContent="この環境ではパスワード付きのファイルを開けません。";return;}
+    let inner=null;
+    const v=await askDialog({title:"パスワード付きのバックアップ",text:"書き出したときに付けたパスワードを入力してください。",
+      fields:[{id:"p",label:"パスワード",type:"password"}],ok:"開く",
+      validate:async x=>{try{const key=await deriveKey(x.p,ub64(b.salt),b.iter);inner=await decryptJSON(key,b);return "";}catch(e){return "パスワードが違います。";}}});
+    if(!v||!inner)return;b=inner;
+  }
+  if(!b.months){$("bkMsg").textContent="勤怠カードのバックアップファイルではありません。";return;}
+  const n=Object.keys(b.months).length;
+  const ok=await askDialog({title:"バックアップを読み込む",text:n+"か月分の記録と設定を読み込みます。同じ月の記録はバックアップの内容で上書きされます。",ok:"読み込む"});
+  if(!ok)return;
+  for(const mk of Object.keys(b.months)){
+    if(!/^\d{4}-\d{2}$/.test(mk))continue;
+    const m=b.months[mk]||{};m.days=m.days||{};m.cal=m.cal||{};m.furiOf=m.furiOf||{};
+    S.months[mk]=m;saveMonth(mk);
+  }
+  if(b.settings){const x=b.settings;
+    if(x.mode==="auto"||x.mode==="fixed")S.settings.mode=x.mode;if(typeof x.daily==="number")S.settings.daily=x.daily;if(typeof x.target==="number")S.settings.target=x.target;
+    if(x.pay&&typeof x.pay==="object")Object.assign(S.settings.pay,x.pay);
+    if(!S.settings.active&&x.active)S.settings.active=x.active;
+    saveSettings();fillPayUI();$("setTarget").value=S.settings.target;$("setDaily").value=S.settings.daily;$("setMode").value=S.settings.mode;syncModeUI();
+  }
+  if(S.settings.active)await loadMonth(monthOf(S.settings.active));
+  lastActionsKey="";renderAll();$("bkMsg").textContent=n+"か月分を読み込みました。";
+});
+
+/* ---------- Excel書き出し ---------- */
+async function xlsxData(year,includePay){
+  for(let m=1;m<=12;m++)await loadMonth(year+"-"+pad(m));
+  const now=Date.now();const months=[];
+  for(let m=1;m<=12;m++){
+    const mk=year+"-"+pad(m);const md=S.months[mk];
+    const has=Object.values(md.days).some(r=>r&&r.in)||Object.keys(md.cal).length||Object.keys(md.furiOf).length||typeof md.target==="number";
+    if(!has)continue;
+    const n=new Date(year,m,0).getDate();const rows=[];
+    for(let d=1;d<=n;d++){
+      const key=mk+"-"+pad(d);const r=md.days[key];const dt=new Date(year,m-1,d);const mid=dt.getTime();
+      const kind=md.furiOf[key]?"振替休日":isHoliday(key)?"休日":"出勤日";
+      const row={serial:(Date.UTC(year,m-1,d)-Date.UTC(1899,11,30))/86400000,wd:WD[dt.getDay()]+(JP_HOL.has(key)?"・祝":""),kind,trip:!!(r&&r.trip),note:(r&&r.note)||"",inT:null,outT:null,brk:0,move:0,hol:""};
+      if(r&&r.in){
+        const t=ms=>Math.round((ms-mid)/60000)/1440;
+        row.inT=t(r.in);row.outT=r.out?t(r.out):null;
+        row.brk=Math.round(breakMin(r,now))/1440;row.move=r.trip?Math.round(moveMin(r,now))/1440:0;
+        if(plannedHoliday(key))row.hol=r.holWork==="premium"?"割増":r.holWork==="furikae"?"振替":"未処理";
+      }
+      rows.push(row);
+    }
+    months.push({label:year+"年"+m+"月",rows,target:typeof md.target==="number"?md.target:null});
+  }
+  return {year,months,includePay,settings:{mode:S.settings.mode,daily:S.settings.daily,target:S.settings.target,pay:clone(S.settings.pay)}};
+}
+$("xlsx").onclick=async()=>{
+  const y=Number(viewMonth.slice(0,4));
+  const v=await askDialog({title:"Excelで保存",text:"選んだ年の記録を、月ごとのシートと年間まとめのシートにして書き出します。",
+    fields:[{id:"year",label:"年",type:"select",options:[[String(y),y+"年"],[String(y-1),(y-1)+"年"]],value:String(y)},
+            {id:"pay",label:"月給の設定と手当の試算を含める",type:"checkbox",value:true}],ok:"書き出す"});
+  if(!v)return;
+  try{
+    const data=await xlsxData(Number(v.year),v.pay);
+    if(!data.months.length){await askDialog({title:"Excelで保存",text:v.year+"年の記録はまだありません。"});return;}
+    const bytes=window.KintaiXL.build(data);
+    await saveFile("勤怠カード_"+v.year+"年.xlsx",bytes,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  }catch(e){await askDialog({title:"Excelで保存",text:"書き出せませんでした。もう一度お試しください。"});}
+};
+
+/* ---------- パスコードロック ---------- */
+function renderLockUI(){
+  const on=!!lockMeta();
+  $("lockState").textContent=on?"設定済み":"未設定";
+  $("lockSet").hidden=on;$("lockChange").hidden=!on;$("lockOff").hidden=!on;
+}
+const newPassFields=[{id:"p1",label:"新しいパスコード（4文字以上、数字がおすすめ）",type:"password",inputmode:"numeric"},{id:"p2",label:"もう一度入力",type:"password",inputmode:"numeric"}];
+const checkNew=x=>!passOK(x.p1)?"パスコードは4文字以上にしてください。":x.p1!==x.p2?"2回の入力が一致しません。":"";
+async function applyNewPass(pass){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iter=250000;
+  const key=await deriveKey(pass,salt,iter);
+  const meta={salt:b64(salt),iter,check:await encryptJSON(key,"kintai-ok")};
+  CKEY=key;localStorage.setItem(LOCK_KEY,JSON.stringify(meta));await rewriteAll();
+}
+$("lockSet").onclick=async()=>{
+  const v=await askDialog({title:"パスコードを設定",text:"忘れると記録を取り出せなくなります。先にバックアップを書き出しておくと安心です。",fields:newPassFields,ok:"設定する",validate:checkNew});
+  if(!v)return;await applyNewPass(v.p1);renderLockUI();
+};
+$("lockChange").onclick=async()=>{
+  const v=await askDialog({title:"パスコードを変更",fields:[{id:"cur",label:"今のパスコード",type:"password",inputmode:"numeric"},...newPassFields],ok:"変更する",
+    validate:async x=>(await keyFromPass(x.cur,lockMeta()))?checkNew(x):"今のパスコードが違います。"});
+  if(!v)return;await applyNewPass(v.p1);renderLockUI();
+};
+$("lockOff").onclick=async()=>{
+  const v=await askDialog({title:"ロックを解除",text:"解除すると、記録は暗号化せずにこの端末に保存されます。",fields:[{id:"cur",label:"今のパスコード",type:"password",inputmode:"numeric"}],ok:"解除する",
+    validate:async x=>(await keyFromPass(x.cur,lockMeta()))?"":"パスコードが違います。"});
+  if(!v)return;CKEY=null;await rewriteAll();localStorage.removeItem(LOCK_KEY);renderLockUI();
+};
+function unlockScreen(meta){return new Promise(res=>{
+  $("lock").hidden=false;$("lockPass").value="";setTimeout(()=>$("lockPass").focus(),50);
+  let fails=0;
+  $("lockForm").onsubmit=async e=>{
+    e.preventDefault();const p=$("lockPass").value;if(!p)return;
+    $("lockBtn").disabled=true;$("lockErr").textContent="確認中…";
+    const key=await keyFromPass(p,meta);
+    if(key){CKEY=key;$("lock").hidden=true;$("lockErr").textContent="";$("lockBtn").disabled=false;res();return;}
+    fails++;$("lockPass").value="";
+    if(fails>=5){let w=30;$("lockErr").textContent="続けて間違えたため、"+w+"秒お待ちください。";
+      const t=setInterval(()=>{w--;if(w<=0){clearInterval(t);fails=0;$("lockBtn").disabled=false;$("lockErr").textContent="";}else $("lockErr").textContent="続けて間違えたため、"+w+"秒お待ちください。";},1000);}
+    else{$("lockErr").textContent="パスコードが違います。";$("lockBtn").disabled=false;}
+  };
+  $("lockForgot").onclick=async()=>{
+    const v=await askDialog({title:"パスコードを忘れた場合",text:"パスコードがないと、暗号化された記録は取り出せません。この端末の記録と設定をすべて消して、最初からやり直すことはできます。バックアップのファイルがあれば、あとから読み込んで戻せます。",
+      fields:[{id:"c",label:"確認のため「消去」と入力",type:"text"}],ok:"すべて消去する",validate:x=>x.c==="消去"?"":"「消去」と入力してください。"});
+    if(!v)return;
+    try{const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(LS))ks.push(k);}ks.forEach(k=>localStorage.removeItem(k));}catch(e){}
+    location.reload();
+  };
+});}
+let hiddenAt=0;
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){hiddenAt=Date.now();return;}
+  if(CKEY&&hiddenAt&&Date.now()-hiddenAt>3*60*1000)location.reload();
+});
+
+/* ---------- init ---------- */
+async function init(){
+  renderRecorder();
+  let db=null,user=null,dl=null;
+  if(window.claude&&typeof window.claude.use==="function"){
+    try{[db,user,dl]=await Promise.all([claude.use("db"),claude.use("user"),claude.use("downloads")]);}catch(e){}
+  }
+  if(db&&user){const uid=await user.id();if(uid){S.db=db;S.uid=uid;}}
+  if(dl)S.downloads=dl;
+  $("csv").hidden=!canSaveFiles();$("xlsx").hidden=!canSaveFiles();$("bkExport").hidden=!canSaveFiles();
+  if(!S.db){
+    const meta=lockMeta();
+    if(meta&&hasCrypto)await unlockScreen(meta);
+    await loadCache();
+    if(hasCrypto){$("lockBox").hidden=false;$("lockHint").hidden=false;renderLockUI();}
+  }
+  let s=null;
+  if(S.db){try{const x=await ref("settings").get();if(x.exists)s=clone(x.data());}catch(e){}}
+  else s=lsGet("settings");
+  if(s){if(s.mode==="auto"||s.mode==="fixed")S.settings.mode=s.mode;if(typeof s.daily==="number")S.settings.daily=s.daily;if(typeof s.target==="number")S.settings.target=s.target;S.settings.active=s.active||null;if(s.pay&&typeof s.pay==="object")Object.assign(S.settings.pay,s.pay);}
+  fillPayUI();
+  $("setTarget").value=S.settings.target;$("setDaily").value=S.settings.daily;$("setMode").value=S.settings.mode;syncModeUI();
+  const now=new Date();const cur=dayKey(now).slice(0,7);
+  const nx=new Date(now.getFullYear(),now.getMonth()+1,1);const nxk=nx.getFullYear()+"-"+pad(nx.getMonth()+1);
+  await Promise.all([loadMonth(cur),loadMonth(nxk)]);
+  if(S.settings.active)await loadMonth(monthOf(S.settings.active));
+  $("app").classList.remove("loading");setSync("saved");
+  renderAll();
+  let lastMin=-1;
+  setInterval(()=>{
+    renderRecorder();renderActions();
+    const mi=new Date().getMinutes();
+    if(mi!==lastMin){lastMin=mi;if(status()!=="off")renderMonth();}
+  },1000);
+}
+init();
+})();
+</script>
+<script>
+if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});}
+if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(()=>{});}
+</script>
+</body>
+</html>
