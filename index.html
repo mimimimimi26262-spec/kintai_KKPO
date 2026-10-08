@@ -234,9 +234,10 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
       <dt>標準勤務</dt><dd>9:00〜18:00（休憩1時間、8時間）</dd>
       <dt>フレキシブルタイム</dt><dd>5:00〜22:00</dd>
       <dt>深夜労働</dt><dd>22:00〜5:00の勤務を自動で集計</dd>
-      <dt>休日</dt><dd>土・日・祝日。休日に働いた日は振替休日か割増賃金（1日8,000円）を選択</dd>
+      <dt>休日</dt><dd>土・日・祝日。休日出勤は振替休日か休日手当（1日8,000円。割増賃金がこれを超えたら差額も支給）</dd>
+      <dt>時間外</dt><dd>月60時間まで25%、月60時間超50%、年間360時間超（12/21起算）40%。重なる分は高い率</dd>
       <dt>有給休暇</dt><dd>1日＝標準時間（8時間）、半休＝4時間を働いたものとして総労働時間に数える（法定外の時間外には含めない）</dd>
-      <dt>出張</dt><dd>移動と業務を分けて記録（どちらも労働時間）。出張手当は1日3,000円</dd>
+      <dt>出張</dt><dd>移動と業務を分けて記録（どちらも労働時間）。100km以上または宿泊を伴う出張は手当1日3,000円</dd>
       <dt>時間外</dt><dd>月の実働が総労働時間を超えた分</dd>
     </dl>
     <div class="srow">
@@ -248,35 +249,40 @@ dialog h3{margin:0 0 14px;font-size:1.05rem}
       <label class="f" id="wTarget">毎月の総労働時間<input type="number" id="setTarget" min="0" max="400" step="0.5" style="width:120px"></label>
     </div>
     <fieldset class="wage">
-      <legend>基礎時給</legend>
+      <legend>基礎時給（第45条）</legend>
       <label class="f">決め方
         <select id="pBasis"><option value="monthly">月給から計算</option><option value="hourly">時給を直接入力</option></select>
       </label>
-      <label class="f" id="wSalary">月給（割増の基礎となる額・円）<input type="number" id="pSalary" min="0" step="1000"></label>
-      <label class="f" id="wAvg">月平均所定労働時間<input type="number" id="pAvg" min="1" max="300" step="0.1"></label>
+      <label class="f" id="wSalary">基本給（月額・円）<input type="number" id="pSalary" min="0" step="1000"></label>
+      <label class="f" id="wAvg">年間所定休日日数<input type="number" id="pYearHol" min="0" max="365" step="1"></label>
       <label class="f" id="wHourly">時給（円）<input type="number" id="pHourly" min="0" step="1"></label>
+      <span class="hint" id="avgText" style="margin:0"></span>
     </fieldset>
     <fieldset class="wage">
-      <legend>割増率（%）</legend>
-      <label class="f">法定内残業<input type="number" id="rIn" min="0" max="100" step="1"></label>
-      <label class="f">時間外（法定外）<input type="number" id="rOver" min="25" max="100" step="1"></label>
-      <label class="f">時間外 月60時間超<input type="number" id="r60" min="50" max="150" step="1"></label>
+      <legend>時間外の割増率（%）</legend>
+      <label class="f">月60時間まで<input type="number" id="rOver" min="25" max="100" step="1"></label>
+      <label class="f">月60時間超<input type="number" id="r60" min="50" max="150" step="1"></label>
+      <label class="f">年間の基準時間超<input type="number" id="rYear" min="0" max="150" step="1"></label>
+      <label class="f">年間の基準時間<input type="number" id="pYearLimit" min="0" max="2000" step="1"></label>
       <label class="f">深夜<input type="number" id="rNight" min="25" max="100" step="1"></label>
-      <label class="f" id="wRHol">休日労働<input type="number" id="rHol" min="35" max="100" step="1"></label>
     </fieldset>
     <fieldset class="wage">
-      <legend>休日出勤の手当</legend>
+      <legend>休日手当（第44条）</legend>
       <label class="f">方式
-        <select id="pHolMode"><option value="flat">1日あたり定額</option><option value="rate">時間 × 割増率で計算</option></select>
+        <select id="pHolMode"><option value="max">定額と割増賃金の高いほう</option><option value="flat">定額のみ</option><option value="rate">割増賃金のみ</option></select>
       </label>
-      <label class="f" id="wHolFlat">1日あたりの額（円）<input type="number" id="pHolFlat" min="0" step="500"></label>
+      <label class="f" id="wHolFlat">1日あたりの定額（円）<input type="number" id="pHolFlat" min="0" step="500"></label>
+      <label class="f">法定休日
+        <select id="pLegalHol"><option value="">指定なし（すべて時間外25%で計算）</option><option value="0">日曜日（35%）</option><option value="6">土曜日（35%）</option></select>
+      </label>
+      <label class="f" id="wRHol">法定休日の割増率<input type="number" id="rHol" min="35" max="100" step="1"></label>
     </fieldset>
     <fieldset class="wage">
-      <legend>出張手当</legend>
+      <legend>出張手当（第43条）</legend>
       <label class="f">1日あたりの額（円）<input type="number" id="pTripFlat" min="0" step="500"></label>
-      <span class="hint" style="margin:0">「出張」にチェックした日の数で計算します。0にすると計算しません。</span>
+      <span class="hint" style="margin:0">「出張」にチェックした日の数で計算します。100km以上または宿泊を伴う出張の日だけチェックしてください。</span>
     </fieldset>
-    <p class="hint">月給には基本給のほか、割増賃金の基礎に含める手当（役職手当など）を足した額を入れてください。家族手当・通勤手当・住宅手当などは法律上除外できます。月平均所定労働時間は「(365日 − 年間休日数) × 8時間 ÷ 12」で求められます（年間休日120日なら163.3時間）。割増率の初期値は法定の最低基準です。</p>
+    <p class="hint">基本給には手当を含めません。月平均所定労働時間は「(365 − 年間所定休日日数) × 1日の所定労働時間 ÷ 12」で自動計算します。時間外は総労働時間を超えた時間で、年間の時間外は1月度（12/21）から数えます。休日手当は1日ごとに定額と割増賃金を比べ、高いほうを計上します。</p>
     <div class="srow"><button class="primary" id="saveSettings">設定を保存</button></div>
     <fieldset class="wage" id="lockBox" hidden>
       <legend>パスコードロック</legend>
@@ -458,20 +464,23 @@ const STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleShe
 const SET="'設定'!";
 function build(data){
   const P=data.settings.pay,inc=!!data.includePay;
-  const base=P.basis==="hourly"?(P.hourly||0):((P.avg>0)?(P.salary||0)/P.avg:0);
-  const flat=P.holMode==="flat";
-  const refs=[];
+  const avgH=(365-(P.yearHolidays||0))*data.settings.daily/12;
+  const base=P.basis==="hourly"?(P.hourly||0):(avgH>0?(P.salary||0)/avgH:0);
+  const holMode=P.holMode==="flat"?"定額":P.holMode==="rate"?"割増率":"高い方";
+  const legalHol=P.legalHol==="0"?"日曜":P.legalHol==="6"?"土曜":"なし";
+  const yearLimit=P.yearLimit||360;
+  const refs=[];let priorOver=0;
   const monthSheets=data.months.map(M=>{
-    const sh=newSheet(M.label);sh.cols=[7,7,10,6,8,8,8,8,8,8,10,10,8,30];sh.freeze=4;
+    const sh=newSheet(M.label);sh.cols=[7,7,10,12,8,8,8,8,8,8,10,10,8,30,10];sh.freeze=4;
     sh.set(1,0,{v:M.label+(M.range?"（"+M.range+"）":"")+" 勤怠表",s:1});
     sh.set(2,0,{v:"青字は記録、黒字は計算式です。時刻を直すと実働・深夜・集計・手当が再計算されます。深夜は休憩の位置を考慮せずに計算します。",s:15});
-    ["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働","休暇","有給時間","メモ"].forEach((h,i)=>sh.set(4,i,{v:h,s:2}));
+    ["日付","曜日","区分","出張","始業","終業","休憩","移動","実働","深夜","休日労働","休暇","有給時間","メモ"].concat(inc?["休日手当"]:[]).forEach((h,i)=>sh.set(4,i,{v:h,s:2}));
     const n=M.rows.length,R=4+n;
-    let cnt=0,counted=0,night=0,holH=0,holD=0,pend=0,trips=0,move=0,leaveD=0,leaveH=0;const daily=data.settings.daily;
+    let cnt=0,counted=0,night=0,holH=0,holD=0,pend=0,trips=0,tripPay=0,move=0,leaveD=0,leaveH=0,holAmt=0;const daily=data.settings.daily;
     M.rows.forEach((d,i)=>{
       const r=5+i,hol=d.kind!=="出勤日";
       sh.set(r,0,{v:d.serial,s:hol?22:3});sh.set(r,1,{v:d.wd,s:hol?11:0});sh.set(r,2,{v:d.kind,s:hol?11:0});
-      if(d.trip)sh.set(r,3,{v:"出張",s:21});
+      if(d.trip)sh.set(r,3,{v:d.tripPay===false?"出張（手当なし）":"出張",s:21});
       if(d.inT!=null){
         sh.set(r,4,{v:d.inT,s:4});if(d.outT!=null)sh.set(r,5,{v:d.outT,s:4});
         sh.set(r,6,{v:d.brk,s:4});if(d.trip)sh.set(r,7,{v:d.move,s:4});
@@ -493,7 +502,21 @@ function build(data){
       if(jv!=="")night+=jv;
       if(d.kind==="休日"&&d.hol==="割増"){holD++;if(iv!=="")holH+=iv;}
       if(d.kind==="休日"&&d.hol==="未処理")pend++;
-      if(d.trip)trips++;
+      if(d.trip){trips++;if(d.tripPay!==false)tripPay++;}
+      if(inc){
+        const Sx=SET;
+        const rateF='IF(OR(AND('+Sx+'$B$22="日曜",WEEKDAY(A'+r+')=1),AND('+Sx+'$B$22="土曜",WEEKDAY(A'+r+')=7)),1+'+Sx+'$B$16,1+'+Sx+'$B$13)';
+        const calcF='ROUND(I'+r+'*24*'+Sx+'$B$10*'+rateF+',0)';
+        const f='IF(AND(C'+r+'="休日",K'+r+'="割増",I'+r+'<>""),IF('+Sx+'$B$17="定額",'+Sx+'$B$18,IF('+Sx+'$B$17="割増率",'+calcF+',MAX('+Sx+'$B$18,'+calcF+'))),"")';
+        let v="";
+        if(d.kind==="休日"&&d.hol==="割増"&&iv!==""){
+          const wd=new Date(Date.UTC(1899,11,30)+d.serial*86400000).getUTCDay();
+          const isLegal=(legalHol==="日曜"&&wd===0)||(legalHol==="土曜"&&wd===6);
+          const calc=Math.round(iv*24*base*(isLegal?1+P.rHol/100:1+P.rOver/100));
+          v=holMode==="定額"?P.holFlat:holMode==="割増率"?calc:Math.max(P.holFlat,calc);holAmt+=v;
+        }
+        sh.set(r,14,{f,v,s:7});
+      }
       if(d.inT!=null&&d.trip)move+=d.move||0;
     });
     const S=R+2;
@@ -520,37 +543,38 @@ function build(data){
     line(S+13,"休日労働（割増）時間",{f:'SUMIFS(I5:I'+R+',C5:C'+R+',"休日",K5:K'+R+',"割増")*24',v:holH*24,s:6});
     line(S+14,"休日労働（割増）日数",{f:'COUNTIFS(C5:C'+R+',"休日",K5:K'+R+',"割増")',v:holD,s:18});
     line(S+15,"休日出勤の未処理（日）",{f:'COUNTIFS(C5:C'+R+',"休日",K5:K'+R+',"未処理")',v:pend,s:18},"アプリで振替か割増を選ぶと反映されます");
-    line(S+16,"出張日数",{f:'COUNTIF(D5:D'+R+',"出張")',v:trips,s:18});
+    line(S+16,"出張日数",{f:'COUNTIF(D5:D'+R+',"出張*")',v:trips,s:18});
     line(S+17,"移動時間",{f:'SUM(H5:H'+R+')*24',v:move*24,s:6},"実働に含む");
+    line(S+19,"出張手当の対象日数",{f:'COUNTIF(D5:D'+R+',"出張")',v:tripPay,s:18},"100km以上または宿泊を伴う出張");
+    line(S+20,"年間の時間外（この期間より前）",refs.length?{f:"'"+refs[refs.length-1].name+"'!"+refs[refs.length-1].rows.yearTo,v:priorOver,s:6}:{v:0,s:6},"年度は12/21起算（1月度から）");
+    line(S+21,"年間の時間外（この期間まで）",{f:E(20)+'+'+E(7),v:priorOver+over,s:6});
     line(S+18,"有給休暇の取得日数",{f:'COUNTIF(L5:L'+R+',"有給")+0.5*(COUNTIF(L5:L'+R+',"午前半休")+COUNTIF(L5:L'+R+',"午後半休"))',v:leaveD,s:14},"半休は0.5日");
-    const ref={name:M.label,rows:{days:E(1),target:E(2),counted:E(3),leave:E(18),diff:E(6),over:E(7),night:E(12),hol:E(13),trips:E(16)},
+    const ref={name:M.label,rows:{yearTo:E(21),days:E(1),target:E(2),counted:E(3),leave:E(18),diff:E(6),over:E(7),night:E(12),hol:E(13),trips:E(16)},
       vals:{days:cnt,target,counted:cH,leave:leaveD,diff,over,night:night*24,hol:holH*24,trips}};
     if(inc){
-      const Pr=S+20,B=SET+'$B$10';
+      const Pr=S+23,B=SET+'$B$10';
       sh.set(Pr,0,{v:"手当の試算",s:1});
       sh.set(Pr+1,0,{v:"区分",s:2});sh.merges.push("A"+(Pr+1)+":D"+(Pr+1));
       sh.set(Pr+1,4,{v:"時間",s:2});sh.set(Pr+1,5,{v:"倍率",s:2});sh.set(Pr+1,6,{v:"金額",s:2});
-      const prow=(r,label,hRef,hVal,rateF,rateV,amtF,amtV)=>{
-        sh.set(r,0,{v:label});sh.merges.push("A"+r+":D"+r);
-        sh.set(r,4,{f:hRef,v:hVal,s:6});sh.set(r,5,{f:rateF,v:rateV,s:14});sh.set(r,6,{f:amtF,v:amtV,s:7});};
+      const prow=(r,label,hCell,rateCell,amtCell)=>{sh.set(r,0,{v:label});sh.merges.push("A"+r+":D"+r);sh.set(r,4,hCell);sh.set(r,5,rateCell);sh.set(r,6,amtCell);};
       const rd=v=>Math.round(v);
-      const a1=rd(inMin*base*(1+P.rIn/100)),a2=rd(o60*base*(1+P.rOver/100)),a3=rd(o60p*base*(1+P.r60/100));
-      const a4=flat?holD*P.holFlat:rd(holH*24*base*(1+P.rHol/100)),a5=rd(night*24*base*P.rNight/100);
-      prow(Pr+2,"法定内残業",E(9),inMin,"1+"+SET+"$B$12",1+P.rIn/100,"ROUND(E"+(Pr+2)+"*"+B+"*F"+(Pr+2)+",0)",a1);
-      prow(Pr+3,"時間外（法定外）",E(10),o60,"1+"+SET+"$B$13",1+P.rOver/100,"ROUND(E"+(Pr+3)+"*"+B+"*F"+(Pr+3)+",0)",a2);
-      prow(Pr+4,"時間外（月60時間超）",E(11),o60p,"1+"+SET+"$B$14",1+P.r60/100,"ROUND(E"+(Pr+4)+"*"+B+"*F"+(Pr+4)+",0)",a3);
-      prow(Pr+5,"休日出勤手当",E(13),holH*24,'IF('+SET+'$B$17="定額","定額",1+'+SET+'$B$16)',flat?"定額":1+P.rHol/100,
-        'IF('+SET+'$B$17="定額",'+E(14)+'*'+SET+'$B$18,ROUND(E'+(Pr+5)+'*'+B+'*(1+'+SET+'$B$16),0))',a4);
-      prow(Pr+6,"深夜割増",E(12),night*24,SET+"$B$15",P.rNight/100,"ROUND(E"+(Pr+6)+"*"+B+"*F"+(Pr+6)+",0)",a5);
-      const a6=trips*(P.tripFlat||0);
-      sh.set(Pr+7,0,{v:"出張手当（日数 × 定額）"});sh.merges.push("A"+(Pr+7)+":D"+(Pr+7));
-      sh.set(Pr+7,4,{f:E(16),v:trips,s:18});sh.set(Pr+7,5,{v:"定額",s:14});
-      sh.set(Pr+7,6,{f:"E"+(Pr+7)+"*"+SET+"$B$19",v:a6,s:7});
+      const a=Math.min(60,over),x40=Math.max(0,Math.min(a,priorOver+a-yearLimit)),x25=a-x40,x50=Math.max(0,over-60);
+      const a1=rd(x25*base*(1+P.rOver/100)),a2=rd(x40*base*(1+P.rYear/100)),a3=rd(x50*base*(1+P.r60/100));
+      const a5=rd(night*24*base*P.rNight/100),a6=tripPay*(P.tripFlat||0);
+      prow(Pr+2,"時間外（月60時間まで）",{f:'MIN(60,'+E(7)+')-E'+(Pr+3),v:x25,s:6},{f:'1+'+SET+'$B$13',v:1+P.rOver/100,s:14},{f:'ROUND(E'+(Pr+2)+'*'+B+'*F'+(Pr+2)+',0)',v:a1,s:7});
+      prow(Pr+3,"時間外（年間"+yearLimit+"時間超の分）",{f:'MAX(0,MIN(MIN(60,'+E(7)+'),'+E(20)+'+MIN(60,'+E(7)+')-'+SET+'$B$23))',v:x40,s:6},{f:'1+'+SET+'$B$12',v:1+P.rYear/100,s:14},{f:'ROUND(E'+(Pr+3)+'*'+B+'*F'+(Pr+3)+',0)',v:a2,s:7});
+      prow(Pr+4,"時間外（月60時間超）",{f:'MAX(0,'+E(7)+'-60)',v:x50,s:6},{f:'1+'+SET+'$B$14',v:1+P.r60/100,s:14},{f:'ROUND(E'+(Pr+4)+'*'+B+'*F'+(Pr+4)+',0)',v:a3,s:7});
+      prow(Pr+5,"休日手当（日ごとの計算の合計）",{f:E(13),v:holH*24,s:6},{v:"日ごと",s:14},{f:'SUM(O5:O'+R+')',v:holAmt,s:7});
+      prow(Pr+6,"深夜割増",{f:E(12),v:night*24,s:6},{f:SET+'$B$15',v:P.rNight/100,s:14},{f:'ROUND(E'+(Pr+6)+'*'+B+'*F'+(Pr+6)+',0)',v:a5,s:7});
+      prow(Pr+7,"出張手当（対象日数 × 定額）",{f:E(19),v:tripPay,s:18},{v:"定額",s:14},{f:'E'+(Pr+7)+'*'+SET+'$B$19',v:a6,s:7});
+      const tot=a1+a2+a3+holAmt+a5+a6;
       sh.set(Pr+8,0,{v:"合計（試算）",s:12});sh.merges.push("A"+(Pr+8)+":D"+(Pr+8));
-      sh.set(Pr+8,6,{f:"SUM(G"+(Pr+2)+":G"+(Pr+7)+")",v:a1+a2+a3+a4+a5+a6,s:16});
-      sh.set(Pr+9,0,{v:"未処理の休日出勤は含みません。金額は区分ごとに1円未満を四捨五入しています。深夜割増は割増分のみです。出張手当の行は時間ではなく日数です。",s:15});
-      ref.rows.pay="G"+(Pr+8);ref.vals.pay=a1+a2+a3+a4+a5+a6;
+      sh.set(Pr+8,6,{f:"SUM(G"+(Pr+2)+":G"+(Pr+7)+")",v:tot,s:16});
+      sh.set(Pr+9,0,{v:"時間外は総労働時間を超えた時間。月60時間までは25%、年間"+yearLimit+"時間を超えた分は40%、月60時間超は50%（重なる分は高い率）。",s:15});
+      sh.set(Pr+10,0,{v:"休日手当は1日ごとに定額と割増賃金（法定休日35%、それ以外25%）を比べ、高いほうを計上。未処理の休日出勤は含みません。",s:15});
+      ref.rows.pay="G"+(Pr+8);ref.vals.pay=tot;
     }
+    priorOver+=over;
     refs.push(ref);
     return sh;
   });
@@ -578,24 +602,26 @@ function build(data){
   srow(3,"1日の標準時間（時間）",{v:data.settings.daily,s:9},"標準勤務 9:00〜18:00、休憩1時間");
   srow(4,"総労働時間の決め方",{v:data.settings.mode==="fixed"?"固定":"自動",s:10},"「自動」＝所定労働日数×1日の標準時間、「固定」＝下の時間数");
   srow(5,"固定の場合の総労働時間（時間）",{v:data.settings.target,s:9});
-  if(data.settings.periodText)srow(21,"集計期間",{v:data.settings.periodText},"アプリの勤務設定で変更できます");
+  srow(21,"集計期間",{v:data.settings.periodText||"毎月1日〜月末"},"アプリの勤務設定で変更できます");
   if(inc){
     srow(6,"基礎時給の決め方",{v:P.basis==="hourly"?"時給":"月給",s:10},"「月給」または「時給」");
-    srow(7,"月給（円）",{v:P.salary||0,s:13},"割増賃金の基礎に含める手当を足した額");
-    srow(8,"月平均所定労働時間（時間）",{v:P.avg,s:9},"(365日 − 年間休日数) × 8時間 ÷ 12");
+    srow(7,"基本給（月給・円）",{v:P.salary||0,s:13},"就業規則第45条：基本給のみ（手当は含めない）");
+    srow(8,"月平均所定労働時間（時間）",{f:'(365-B20)*B3/12',v:avgH,s:6},"(365 − 年間所定休日日数) × 1日の所定労働時間 ÷ 12");
     srow(9,"時給（円）",{v:P.hourly||0,s:13},"基礎時給の決め方が「時給」の場合");
-    srow(10,"基礎時給",{f:'IF(B6="時給",B9,IF(B8>0,B7/B8,0))',v:base,s:20},"計算式");
+    srow(10,"基礎時給（1時間あたりの賃金）",{f:'IF(B6="時給",B9,IF(B8>0,B7/B8,0))',v:base,s:20},"計算式");
     st.set(11,0,{v:"割増率",s:12});
-    srow(12,"法定内残業",{v:P.rIn/100,s:8});
-    srow(13,"時間外（法定外）",{v:P.rOver/100,s:8},"法定の最低は25%");
-    srow(14,"時間外（月60時間超）",{v:P.r60/100,s:8},"法定の最低は50%");
-    srow(15,"深夜",{v:P.rNight/100,s:8},"法定の最低は25%（割増分）");
-    srow(16,"休日労働（割増率方式の場合）",{v:P.rHol/100,s:8},"法定休日の最低は35%");
-    srow(17,"休日出勤手当の方式",{v:flat?"定額":"割増率",s:10},"「定額」または「割増率」");
-    srow(18,"休日出勤手当 1日あたり（円）",{v:P.holFlat,s:13},"会社規定");
-    srow(19,"出張手当 1日あたり（円）",{v:P.tripFlat||0,s:13},"会社規定（出張の日1日ごと）");
+    srow(12,"時間外（年間の基準時間超）",{v:P.rYear/100,s:8},"第45条(2)：40%");
+    srow(13,"時間外（月60時間まで）",{v:P.rOver/100,s:8},"第45条(1)①：25%");
+    srow(14,"時間外（月60時間超）",{v:P.r60/100,s:8},"第45条(1)②：50%");
+    srow(15,"深夜",{v:P.rNight/100,s:8},"第45条(5)：25%");
+    srow(16,"休日労働（法定休日）",{v:P.rHol/100,s:8},"第45条(4)：35%");
+    srow(17,"休日手当の方式",{v:holMode,s:10},"「高い方」＝定額と割増賃金の高いほう（第44条）／「定額」／「割増率」");
+    srow(18,"休日手当 1日あたり（円）",{v:P.holFlat,s:13},"第44条：8,000円");
+    srow(19,"出張手当 1日あたり（円）",{v:P.tripFlat||0,s:13},"第43条：100km以上または宿泊を伴う出張");
+    srow(20,"年間所定休日日数",{v:P.yearHolidays||0,s:9},"月平均所定労働時間の計算に使用");
+    srow(22,"法定休日の曜日",{v:legalHol,s:10},"「なし」「日曜」「土曜」。法定休日の休日労働は35%、それ以外は25%で計算");
+    srow(23,"年間の時間外の基準（時間）",{v:yearLimit,s:9},"これを超えた分は40%");
   }
-
   const sheets=[sum,...monthSheets,st];
   const files=[];
   files.push({name:"[Content_Types].xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+sheets.map((s,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("")+'</Types>'});
@@ -632,7 +658,7 @@ const JP_HOL=new Set(["2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-
 const FLEX_START=5,FLEX_END=22; // フレキシブルタイム 5:00〜22:00、それ以外は深夜
 
 /* ---------- storage ---------- */
-const S={db:null,uid:null,months:{},settings:{mode:"auto",daily:8,target:160,startDay:21,targets:{},active:null,pay:{basis:"monthly",salary:0,avg:163.3,hourly:0,rIn:0,rOver:25,r60:50,rNight:25,rHol:35,holMode:"flat",holFlat:8000,tripFlat:3000}},queues:{},downloads:null};
+const S={db:null,uid:null,months:{},settings:{mode:"auto",daily:8,target:160,startDay:21,targets:{},active:null,pay:{basis:"monthly",salary:0,avg:163.3,hourly:0,rIn:0,rOver:25,r60:50,rNight:25,rHol:35,holMode:"max",holFlat:8000,tripFlat:3000,rYear:40,yearLimit:360,yearHolidays:120,legalHol:"",v:2}},queues:{},downloads:null};
 const LS="kintai:";
 /* 端末内保存：メモリ上の復号済みデータ（CACHE）を正とし、書き込み時にパスコードの鍵で暗号化する */
 const LOCK_KEY=LS+"lock";const CACHE={};let CKEY=null;const writeChain={};
@@ -779,16 +805,16 @@ function status(){
 function monthStats(pk,now){
   const ds=periodDays(pk);const n=ds.length;
   const todayK=dayKey(new Date(now));
-  const st={days:0,counted:0,leave:0,leaveDays:0,holPrem:0,holPremDays:0,holPend:0,holPendDays:0,furiDays:0,night:0,move:0,tripDays:0,remainDays:0};
+  const st={pk,holList:[],tripPayDays:0,days:0,counted:0,leave:0,leaveDays:0,holPrem:0,holPremDays:0,holPend:0,holPendDays:0,furiDays:0,night:0,move:0,tripDays:0,remainDays:0};
   for(const key of ds){
     const r=recOf(key);const hol=isHoliday(key);
     if(r&&r.in){
       const w=workMin(r,now);st.days++;st.night+=nightMin(r,now);
-      if(hol){if(r.holWork==="premium"){st.holPrem+=w;st.holPremDays++;}else{st.holPend+=w;st.holPendDays++;}}
+      if(hol){if(r.holWork==="premium"){st.holPrem+=w;st.holPremDays++;st.holList.push({key,min:w});}else{st.holPend+=w;st.holPendDays++;}}
       else{st.counted+=w;if(r.holWork==="furikae")st.furiDays++;}
       if(r.trip)st.move+=moveMin(r,now);
     }
-    if(r&&r.trip)st.tripDays++;
+    if(r&&r.trip){st.tripDays++;st.tripPayDays++;}
     const lm=leaveMin(r,key);if(lm){st.leave+=lm;st.leaveDays+=r.leave==="full"?1:0.5;}
     if(!hol&&!(r&&r.leave==="full")&&(key>todayK||(key===todayK&&!(r&&r.in))))st.remainDays++;
   }
@@ -832,7 +858,7 @@ async function punch(kind){
 let viewMonth=dayKey(new Date()).slice(0,7);
 function chips(key,now){
   const r=recOf(key);const md=mdOf(key);let h="";
-  if(r&&r.trip)h+='<span class="chip trip">出張</span>';
+  if(r&&r.trip)h+='<span class="chip trip">'+"出張"+'</span>';
   if(r&&r.leave&&!isHoliday(key))h+='<span class="chip leave">'+LEAVE_LABEL[r.leave]+'</span>';
   if(r&&!r.in&&r.holWork==="furikae"&&r.furiDate)h+='<span class="chip off">休出予定→振替 '+md2(r.furiDate)+'</span>';
   if(r&&r.in&&plannedHoliday(key)){
@@ -932,39 +958,47 @@ function renderMonth(){
   $("totals").innerHTML=tot.map(t=>"<div><dt>"+t[0]+'</dt><dd class="dot '+t[2]+'">'+t[1]+"</dd></div>").join("");
 }
 const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
-function baseRate(){const p=S.settings.pay;const b=p.basis==="hourly"?p.hourly:(p.avg>0?p.salary/p.avg:0);return b>0?b:0;}
+function avgHours(){return (365-(Number(S.settings.pay.yearHolidays)||0))*S.settings.daily/12;}
+function baseRate(){const p=S.settings.pay;const a=avgHours();const b=p.basis==="hourly"?p.hourly:(a>0?p.salary/a:0);return b>0?b:0;}
+async function loadYearBefore(pk){const [y,m]=pk.split("-").map(Number);for(let k=1;k<m;k++)await loadPeriod(y+"-"+pad(k));}
+function yearPrior(pk){const [y,m]=pk.split("-").map(Number);let c=0;const now=Date.now();for(let k=1;k<m;k++){const q=y+"-"+pad(k);if(periodLoaded(q))c+=monthStats(q,now).over;}return c;}
+function holDayAmount(key,min,base){
+  const p=S.settings.pay;const [y,m,d]=parseKey(key);const wd=new Date(y,m-1,d).getDay();
+  const legal=(p.legalHol==="0"&&wd===0)||(p.legalHol==="6"&&wd===6);
+  const calc=base?Math.round(min/60*base*(legal?1+p.rHol/100:1+p.rOver/100)):0;
+  return p.holMode==="flat"?p.holFlat:p.holMode==="rate"?calc:Math.max(p.holFlat,calc);
+}
 function payCalc(st){
-  const p=S.settings.pay;const base=baseRate();const flat=p.holMode==="flat";const trip=p.tripFlat>0;
-  if(!base&&!flat&&!trip)return null;
-  const inMin=Math.max(0,st.over-st.overLegal);
-  const o=st.overLegal,o60=Math.min(o,3600),o60p=Math.max(0,o-3600);
-  const rows=[
-    ["法定内残業","総労働時間を超え、法定総枠までの時間",inMin,1+p.rIn/100],
-    ["時間外（法定外）","法定総枠を超えた時間（月60時間まで）",o60,1+p.rOver/100],
-    ["時間外 月60時間超","法定外のうち月60時間を超えた時間",o60p,1+p.r60/100],
-    ["休日労働","割増賃金を選んだ休日出勤",st.holPrem,1+p.rHol/100],
-    ["深夜割増","22:00〜5:00の勤務（割増分のみ）",st.night,p.rNight/100]
-  ].filter((r,i)=>i!==2||r[2]>0).map(r=>({name:r[0],desc:r[1],min:r[2],rate:r[3],amt:Math.round(r[2]/60*base*r[3])}));
-  let legalHol=null;
-  if(flat){
-    const h=rows.find(r=>r.name==="休日労働");
-    h.name="休日出勤手当（定額）";h.desc=yen(p.holFlat)+" × "+st.holPremDays+"日";h.rate=null;h.amt=p.holFlat*st.holPremDays;
-    if(base)legalHol=Math.round(st.holPrem/60*base*1.35);
+  const p=S.settings.pay;const base=baseRate();
+  if(!base&&!(p.holFlat>0)&&!(p.tripFlat>0))return null;
+  const lim=(p.yearLimit||360);const prior=yearPrior(st.pk);
+  const over=st.over,a=Math.min(over,3600),x40=Math.max(0,Math.min(a,prior+a-lim*60)),x25=a-x40,x50=Math.max(0,over-3600);
+  const R=(name,desc,min,rate)=>({name,desc,min,rate,amt:Math.round(min/60*base*rate)});
+  const rows=[];
+  if(base){
+    rows.push(R("時間外（月60時間まで）","総労働時間を超えた時間",x25,1+p.rOver/100));
+    if(x40>0)rows.push(R("時間外（年間"+lim+"時間超の分）","今年度の時間外の累計が"+lim+"時間を超えた分",x40,1+p.rYear/100));
+    if(x50>0)rows.push(R("時間外（月60時間超）","この期間の時間外のうち60時間を超えた分",x50,1+p.r60/100));
   }
-  if(trip)rows.push({name:"出張手当（定額）",desc:yen(p.tripFlat)+" × "+st.tripDays+"日",min:null,rate:null,amt:p.tripFlat*st.tripDays});
-  const used=base?rows:rows.filter(r=>r.rate===null);
-  return {base,rows:used,total:used.reduce((a,r)=>a+r.amt,0),legalHol};
+  if(p.holMode!=="rate"||base){
+    let amt=0;st.holList.forEach(h=>{amt+=holDayAmount(h.key,h.min,base);});
+    const desc=p.holMode==="flat"?yen(p.holFlat)+" × "+st.holPremDays+"日":p.holMode==="rate"?"休日出勤の時間 × 割増率":"1日ごとに"+yen(p.holFlat)+"と割増賃金の高いほう（"+st.holPremDays+"日）";
+    rows.push({name:"休日手当",desc,min:st.holPrem,rateText:"日ごと",amt});
+  }
+  if(base)rows.push(R("深夜割増","22:00〜5:00の勤務（割増分のみ）",st.night,p.rNight/100));
+  if(p.tripFlat>0)rows.push({name:"出張手当",desc:yen(p.tripFlat)+" × "+st.tripPayDays+"日",min:null,minText:st.tripPayDays+"日",rateText:"定額",amt:p.tripFlat*st.tripPayDays});
+  return {base,rows,total:rows.reduce((s,r)=>s+r.amt,0),prior,yearTo:prior+over};
 }
 function renderPay(st){
   const pc=payCalc(st);
   if(!pc){$("payBase").textContent="";$("payBody").innerHTML='<p class="pempty">勤務設定で月給か時給を入力すると、残業代・休日手当・深夜手当・出張手当を自動で計算します。</p>';return;}
-  $("payBase").textContent=pc.base?"基礎時給 "+yen(pc.base)+"（"+pc.base.toFixed(2)+"円）":"基礎時給が未設定のため、休日出勤手当のみ表示しています";
+  $("payBase").textContent=pc.base?"基礎時給 "+yen(pc.base)+"（"+pc.base.toFixed(2)+"円）":"基本給が未設定のため、休日手当と出張手当のみ表示しています";
   let h='<div class="tablewrap"><table class="paytbl"><thead><tr><th>区分</th><th class="num">時間</th><th class="num">倍率</th><th class="num">金額</th></tr></thead><tbody>';
-  pc.rows.forEach(r=>{h+='<tr style="cursor:default"><td>'+r.name+'<div style="font-size:.78rem;color:var(--muted)">'+r.desc+'</div></td><td class="num dot">'+(r.min===null?st.tripDays+"日":dur(r.min))+'</td><td class="num dot">'+(r.rate===null?"定額":r.rate.toFixed(2))+'</td><td class="num dot">'+yen(r.amt)+'</td></tr>';});
+  pc.rows.forEach(r=>{h+='<tr style="cursor:default"><td>'+r.name+'<div style="font-size:.78rem;color:var(--muted)">'+r.desc+'</div></td><td class="num dot">'+(r.minText||dur(r.min))+'</td><td class="num dot">'+(r.rateText||r.rate.toFixed(2))+'</td><td class="num dot">'+yen(r.amt)+'</td></tr>';});
   h+='</tbody><tfoot><tr><td colspan="3">合計（試算）</td><td class="num dot paytotal">'+yen(pc.total)+'</td></tr></tfoot></table></div>';
   const notes=[];
   if(st.holPendDays)notes.push("休日出勤の未処理が"+st.holPendDays+"日あります。割増賃金を選ぶと休日労働に加算されます。");
-  if(pc.legalHol!==null&&st.holPremDays&&S.settings.pay.holFlat*st.holPremDays<pc.legalHol)notes.push("休日出勤手当（定額）が、時間 × 1.35で計算した額（"+yen(pc.legalHol)+"）を下回っています。法定休日の労働が含まれる場合は差額の支払いが必要になることがあるので、人事に確認してください。");
+  if(pc.base)notes.push("今年度（1月度から）の時間外の累計：この期間より前 "+dur(pc.prior)+"、この期間まで "+dur(pc.yearTo)+"（"+(S.settings.pay.yearLimit||360)+"時間を超えた分は40%）");
   if(st.diff<-0.5)notes.push("総労働時間に"+dur(-st.diff)+"不足しています。不足分の扱い（控除または翌月繰越）は会社の規定を確認してください。");
   notes.push("1円未満は区分ごとに四捨五入しています。実際の支給額は給与計算の端数処理により異なる場合があります。");
   h+='<p class="hint" style="padding:0 16px 14px">'+notes.join("<br>")+'</p>';
@@ -1129,13 +1163,13 @@ function buildCsv(){
     .forEach(p=>lines.push(p.map(q).join(",")));
   const pc=payCalc(st);
   if(pc){lines.push("");lines.push([q("手当の試算"),q("時間"),q("倍率"),q("金額")].join(","));
-    pc.rows.forEach(r=>lines.push([r.name,r.min===null?st.tripDays+"日":dur(r.min),r.rate===null?"定額":r.rate.toFixed(2),Math.round(r.amt)].map(q).join(",")));
+    pc.rows.forEach(r=>lines.push([r.name,r.minText||dur(r.min),r.rateText||r.rate.toFixed(2),Math.round(r.amt)].map(q).join(",")));
     lines.push([q("合計"),q(""),q(""),q(Math.round(pc.total))].join(","));if(pc.base)lines.push([q("基礎時給"),q(pc.base.toFixed(2))].join(","));}
   return "\uFEFF"+lines.join("\r\n");
 }
 
 /* ---------- events ---------- */
-async function showMonth(pk){viewMonth=pk;await loadPeriod(pk);renderMonth();}
+async function showMonth(pk){viewMonth=pk;await loadPeriod(pk);renderMonth();loadYearBefore(pk).then(()=>{if(viewMonth===pk)renderMonth();});}
 function shift(delta){const [y,m]=viewMonth.split("-").map(Number);const d=new Date(y,m-1+delta,1);showMonth(d.getFullYear()+"-"+pad(d.getMonth()+1));}
 $("prev").onclick=()=>shift(-1);$("next").onclick=()=>shift(1);
 $("thisMonth").onclick=()=>showMonth(periodOf(dayKey(new Date())));
@@ -1150,11 +1184,13 @@ $("mTarget").addEventListener("change",()=>{
   if(startDay()===1){const md=S.months[pk];if(md&&typeof md.target==="number"){delete md.target;saveMonth(pk);}}
   saveSettings();renderAll();
 });
-function fillPayUI(){const P=S.settings.pay;$("pBasis").value=P.basis;$("pSalary").value=P.salary||"";$("pAvg").value=P.avg;$("pHourly").value=P.hourly||"";
-  $("rIn").value=P.rIn;$("rOver").value=P.rOver;$("r60").value=P.r60;$("rNight").value=P.rNight;$("rHol").value=P.rHol;$("pHolMode").value=P.holMode;$("pHolFlat").value=P.holFlat;$("pTripFlat").value=P.tripFlat;syncPayUI();}
-function syncPayUI(){const m=$("pBasis").value==="monthly";$("wSalary").hidden=!m;$("wAvg").hidden=!m;$("wHourly").hidden=m;
-  const f=$("pHolMode").value==="flat";$("wHolFlat").hidden=!f;$("wRHol").hidden=f;}
-$("pBasis").addEventListener("change",syncPayUI);$("pHolMode").addEventListener("change",syncPayUI);
+function fillPayUI(){const P=S.settings.pay;$("pBasis").value=P.basis;$("pSalary").value=P.salary||"";$("pYearHol").value=P.yearHolidays;$("pHourly").value=P.hourly||"";
+  $("rOver").value=P.rOver;$("r60").value=P.r60;$("rYear").value=P.rYear;$("pYearLimit").value=P.yearLimit;$("rNight").value=P.rNight;$("rHol").value=P.rHol;
+  $("pHolMode").value=P.holMode;$("pHolFlat").value=P.holFlat;$("pLegalHol").value=P.legalHol||"";$("pTripFlat").value=P.tripFlat;syncPayUI();}
+function syncPayUI(){const m=$("pBasis").value==="monthly";$("wSalary").hidden=!m;$("wAvg").hidden=!m;$("avgText").hidden=!m;$("wHourly").hidden=m;
+  $("wHolFlat").hidden=$("pHolMode").value==="rate";$("wRHol").hidden=!$("pLegalHol").value;
+  const yh=Number($("pYearHol").value)||0;$("avgText").textContent="月平均所定労働時間："+((365-yh)*S.settings.daily/12).toFixed(2)+"時間";}
+["pBasis","pHolMode","pLegalHol"].forEach(id=>$(id).addEventListener("change",syncPayUI));$("pYearHol").addEventListener("input",syncPayUI);
 function fillStartDayUI(){
   const sel=$("setStartDay");if(!sel.options.length){for(let d=1;d<=28;d++){const o=document.createElement("option");o.value=d;o.textContent=d===1?"1日始まり（月末締め）":d+"日始まり（"+(d-1)+"日締め）";sel.appendChild(o);}}
   sel.value=String(startDay());$("ruleSd").textContent=periodText()+(startDay()===1?"":"（例：10月度＝9/"+startDay()+"〜10/"+(startDay()-1)+"）");
@@ -1168,8 +1204,9 @@ $("saveSettings").onclick=async()=>{
   S.settings.daily=Math.min(24,Math.max(0,Number($("setDaily").value)||8));
   S.settings.target=Math.max(0,Number($("setTarget").value)||160);
   const P=S.settings.pay,num=(id,def,min)=>{const v=Number($(id).value);return isNaN(v)||$(id).value===""?def:Math.max(min,v);};
-  P.basis=$("pBasis").value;P.salary=num("pSalary",0,0);P.avg=num("pAvg",163.3,1);P.hourly=num("pHourly",0,0);
-  P.rIn=num("rIn",0,0);P.rOver=num("rOver",25,25);P.r60=num("r60",50,50);P.rNight=num("rNight",25,25);P.rHol=num("rHol",35,35);P.holMode=$("pHolMode").value;P.holFlat=num("pHolFlat",8000,0);P.tripFlat=num("pTripFlat",0,0);
+  P.basis=$("pBasis").value;P.salary=num("pSalary",0,0);P.yearHolidays=Math.min(365,num("pYearHol",120,0));P.hourly=num("pHourly",0,0);
+  P.rOver=num("rOver",25,25);P.r60=num("r60",50,50);P.rYear=num("rYear",40,0);P.yearLimit=num("pYearLimit",360,0);P.rNight=num("rNight",25,25);P.rHol=num("rHol",35,35);
+  P.holMode=$("pHolMode").value;P.holFlat=num("pHolFlat",8000,0);P.legalHol=$("pLegalHol").value;P.tripFlat=num("pTripFlat",0,0);
   fillPayUI();
   saveSettings();fillStartDayUI();
   if(sdChanged){viewMonth=periodOf(dayKey(new Date()));await loadPeriod(viewMonth);}
@@ -1274,7 +1311,7 @@ $("bkFile").addEventListener("change",async()=>{
   if(b.settings){const x=b.settings;
     if(x.mode==="auto"||x.mode==="fixed")S.settings.mode=x.mode;if(typeof x.daily==="number")S.settings.daily=x.daily;if(typeof x.target==="number")S.settings.target=x.target;
     if(typeof x.startDay==="number")S.settings.startDay=x.startDay;if(x.targets&&typeof x.targets==="object")S.settings.targets=Object.assign(S.settings.targets||{},x.targets);
-    if(x.pay&&typeof x.pay==="object")Object.assign(S.settings.pay,x.pay);
+    if(x.pay&&typeof x.pay==="object"){Object.assign(S.settings.pay,x.pay);if(!(x.pay.v>=2)){S.settings.pay.holMode="max";S.settings.pay.v=2;}}
     if(!S.settings.active&&x.active)S.settings.active=x.active;
     saveSettings();fillPayUI();$("setTarget").value=S.settings.target;$("setDaily").value=S.settings.daily;$("setMode").value=S.settings.mode;syncModeUI();fillStartDayUI();
     viewMonth=periodOf(dayKey(new Date()));await loadPeriod(viewMonth);
@@ -1295,7 +1332,7 @@ async function xlsxData(year,includePay){
     for(const key of ds){
       const [yy,mm,d]=parseKey(key);const md=mdOf(key);const r=md.days[key];const dt=new Date(yy,mm-1,d);const mid=dt.getTime();
       const kind=md.furiOf[key]?"振替休日":isHoliday(key)?"休日":"出勤日";
-      const row={serial:(Date.UTC(yy,mm-1,d)-Date.UTC(1899,11,30))/86400000,wd:WD[dt.getDay()]+(JP_HOL.has(key)?"・祝":""),kind,trip:!!(r&&r.trip),note:(r&&r.note)||"",inT:null,outT:null,brk:0,move:0,hol:"",leave:(r&&r.leave&&!isHoliday(key))?LEAVE_LABEL[r.leave]:""};
+      const row={serial:(Date.UTC(yy,mm-1,d)-Date.UTC(1899,11,30))/86400000,wd:WD[dt.getDay()]+(JP_HOL.has(key)?"・祝":""),kind,trip:!!(r&&r.trip),tripPay:true,note:(r&&r.note)||"",inT:null,outT:null,brk:0,move:0,hol:"",leave:(r&&r.leave&&!isHoliday(key))?LEAVE_LABEL[r.leave]:""};
       if(r&&r.in){
         const t=ms=>Math.round((ms-mid)/60000)/1440;
         row.inT=t(r.in);row.outT=r.out?t(r.out):null;
@@ -1396,13 +1433,14 @@ async function init(){
   let s=null;
   if(S.db){try{const x=await ref("settings").get();if(x.exists)s=clone(x.data());}catch(e){}}
   else s=lsGet("settings");
-  if(s){if(s.mode==="auto"||s.mode==="fixed")S.settings.mode=s.mode;if(typeof s.daily==="number")S.settings.daily=s.daily;if(typeof s.target==="number")S.settings.target=s.target;if(typeof s.startDay==="number")S.settings.startDay=s.startDay;if(s.targets&&typeof s.targets==="object")S.settings.targets=s.targets;S.settings.active=s.active||null;if(s.pay&&typeof s.pay==="object")Object.assign(S.settings.pay,s.pay);}
+  if(s){if(s.mode==="auto"||s.mode==="fixed")S.settings.mode=s.mode;if(typeof s.daily==="number")S.settings.daily=s.daily;if(typeof s.target==="number")S.settings.target=s.target;if(typeof s.startDay==="number")S.settings.startDay=s.startDay;if(s.targets&&typeof s.targets==="object")S.settings.targets=s.targets;S.settings.active=s.active||null;if(s.pay&&typeof s.pay==="object"){Object.assign(S.settings.pay,s.pay);if(!(s.pay.v>=2)){S.settings.pay.holMode="max";S.settings.pay.v=2;}}}
   fillPayUI();
   $("setTarget").value=S.settings.target;$("setDaily").value=S.settings.daily;$("setMode").value=S.settings.mode;syncModeUI();
   fillStartDayUI();
   const now=new Date();viewMonth=periodOf(dayKey(now));
   const nx=new Date(now.getFullYear(),now.getMonth()+1,1);const nxk=nx.getFullYear()+"-"+pad(nx.getMonth()+1);
   await Promise.all([loadPeriod(viewMonth),loadMonth(nxk)]);
+  loadYearBefore(viewMonth).then(()=>renderMonth());
   if(S.settings.active)await loadMonth(monthOf(S.settings.active));
   $("app").classList.remove("loading");setSync("saved");
   renderAll();
